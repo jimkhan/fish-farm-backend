@@ -1,0 +1,21 @@
+{
+  "name": "@fish-farm/calendar",
+  "version": "0.1.0",
+  "description": "Bangla calendar (Bangladesh-revised 2019): Gregorian↔Bangla conversion, Bengali numerals, ritu (ADR-011, NFR-016). Implementation lands with TASK-007.",
+  "license": "UNLICENSED",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepack": "npm run build"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

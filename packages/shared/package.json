@@ -1,0 +1,21 @@
+{
+  "name": "@fish-farm/shared",
+  "version": "0.1.0",
+  "description": "FMS cross-surface contracts: domain-event types and shared DTO/enum types (ADR-015, OI-1). Consumed by fish-farm-backend, fish-farm-web, fish-farm-mobile-app.",
+  "license": "UNLICENSED",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepack": "npm run build"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

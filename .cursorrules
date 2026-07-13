@@ -1,0 +1,47 @@
+# ============================================================
+# AIDLC EXECUTION RULES — Fish Farm Management System (FMS) — surface: backend
+# ============================================================
+## Source of truth
+The specs in ../fish-farm-context-files/ are the source of truth. This repo holds only code
+generated from them. Never hand-edit code to fix a problem — fix the spec, then regenerate.
+The coding constitution is ../fish-farm-context-files/CLAUDE.md; when it and a prompt conflict,
+CLAUDE.md wins unless the human overrides in chat.
+
+## Where things live
+- Specs/plans/contracts: ../fish-farm-context-files/  (start at ../fish-farm-context-files/INDEX.md)
+- The API contract: ../fish-farm-context-files/contracts/openapi.yaml
+- This repo: generated NestJS backend code only (modular monolith, Clean Architecture)
+- Shared packages are hosted here under `packages/{calendar,shared}` and published to web/mobile (OI-1)
+
+## Non-negotiable invariants (from CLAUDE.md §2 — never violate)
+- Tenant isolation: every project-owned query is filtered by project_id via the project-scope
+  guard + scoped-repository base. No endpoint queries project data unscoped. Non-member → 403/404
+  uniformly (never leak another project's existence). A negative isolation test is a deliverable.
+- Domain purity: the domain layer imports zero frameworks (no NestJS/TypeORM/HTTP). Dependencies
+  point inward only.
+- TypeORM Data Mapper in infrastructure only; never @Entity/@Column on a domain class; never
+  Active Record. synchronize:false always; every schema change ships a reversible migration.
+- No secrets in code (env only). Money as integer minor units / decimal, never float. UUID v4.
+- Bangla dates only via packages/calendar — never Intl/ICU.
+
+## Per-task workflow (never skip)
+1. READ the task card in ../fish-farm-context-files/BACKLOG.md (cards tagged surface=backend) + its module file
+2. ASSEMBLE context: parent IDs, glossary terms, relevant ADRs, the contract, current code
+3. GENERATE code AND tests (one test per AC) — the backend IMPLEMENTS contracts/openapi.yaml
+4. VERIFY: tests pass, coverage met, lint/type/security clean, contract tests pass, build succeeds
+5. REVIEW: a human checks intent/correctness (not syntax)
+6. If wrong → fix the SPEC or card, regenerate. Do NOT hand-patch.
+7. INTEGRATE: merge; update ../fish-farm-context-files/TRACEABILITY_MATRIX.md + MODULE_PROGRESS_TRACKER.md
+8. COMMIT with TASK- and MOD- IDs. One unit per session; never bundle units.
+
+## Guardrails — STOP and ask a human, never decide alone:
+- Changing a frozen ADR, or changing contracts/openapi.yaml (it affects other surfaces)
+- Adding/removing a data entity or shared schema; defining a reserved CON-049…055 endpoint
+- Anything touching auth, payments/finance, PII, or compliance
+- Contradicting an NFR threshold; adding an unapproved dependency
+- Any scope beyond the card's acceptance criteria
+- Unresolved Open Items (OI-1…OI-6) that a card depends on
+
+## Never: write specs into this repo; implement without reading the card; mark done without
+passing ACs; rename an ID/file without updating every cross-reference, the contract, the matrix, INDEX.md
+# ============================================================
