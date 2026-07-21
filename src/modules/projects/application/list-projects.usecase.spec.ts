@@ -21,6 +21,7 @@ function setup(overrides: { memberships?: ProjectMembership[]; page?: ProjectLis
       .mockResolvedValue(overrides.memberships ?? [membershipIn('p-1'), membershipIn('p-2')]),
   };
   const projects: jest.Mocked<ProjectRepositoryPort> = {
+    findAllActive: jest.fn(),
     findById: jest.fn(),
     findPage: jest.fn().mockResolvedValue(overrides.page ?? { data: [], nextCursor: null }),
     save: jest.fn(),

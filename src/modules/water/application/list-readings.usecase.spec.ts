@@ -17,6 +17,8 @@ describe('ListReadingsUseCase (TASK-023, CON-025, AC-090)', () => {
       createdAt: new Date(),
     });
     const readings: jest.Mocked<WaterReadingRepositoryPort> = {
+    findForProjectBetween: jest.fn().mockResolvedValue([]),
+    findForPondBetween: jest.fn().mockResolvedValue([]),
       findForPond: jest.fn().mockResolvedValue([reading]),
       findByClientMutationId: jest.fn(),
       save: jest.fn(),

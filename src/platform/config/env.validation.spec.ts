@@ -53,4 +53,23 @@ describe('validateEnv — fail-fast env validation (AC-002)', () => {
       /DB_HOST.*DB_USERNAME.*DB_PASSWORD.*DB_NAME|DB_HOST/,
     );
   });
+
+  it('TASK-048: OPENWEATHER_API_KEY and MEDIA_SERVER_BASE_URL are optional — boot succeeds without them', () => {
+    const out = validateEnv({ NODE_ENV: 'test', ...VALID_DB_ENV });
+    expect(out.OPENWEATHER_API_KEY).toBeUndefined();
+    expect(out.MEDIA_SERVER_BASE_URL).toBeUndefined();
+  });
+
+  it('TASK-048: MEDIA_SERVER_BASE_URL must be a valid URI when set', () => {
+    expect(() =>
+      validateEnv({ NODE_ENV: 'test', ...VALID_DB_ENV, MEDIA_SERVER_BASE_URL: 'not-a-url' }),
+    ).toThrow(/MEDIA_SERVER_BASE_URL/);
+
+    const out = validateEnv({
+      NODE_ENV: 'test',
+      ...VALID_DB_ENV,
+      MEDIA_SERVER_BASE_URL: 'http://media-server:9997',
+    });
+    expect(out.MEDIA_SERVER_BASE_URL).toBe('http://media-server:9997');
+  });
 });

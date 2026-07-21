@@ -29,6 +29,7 @@ function setup(overrides: { project?: Project | null; existing?: WaterThreshold 
     save: jest.fn().mockImplementation(async (t: WaterThreshold) => t),
   };
   const projects: jest.Mocked<ProjectRepositoryPort> = {
+    findAllActive: jest.fn(),
     findById: jest
       .fn()
       .mockResolvedValue(overrides.project === undefined ? project : overrides.project),

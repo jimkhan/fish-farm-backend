@@ -30,6 +30,11 @@ export class TypeOrmProjectRepository implements ProjectRepositoryPort {
     return model ? toDomain(model) : null;
   }
 
+  async findAllActive(): Promise<Project[]> {
+    const models = await this.repo.find({ where: { status: 'ACTIVE' } });
+    return models.map(toDomain);
+  }
+
   async findPage(projectIds: string[], cursor: string | null, limit: number): Promise<ProjectListPage> {
     if (projectIds.length === 0) {
       return { data: [], nextCursor: null };

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { LowStock } from '@fish-farm/shared';
+import { FeedCostIncurred, LowStock } from '@fish-farm/shared';
 import { DomainEventBus } from '../../../platform/events/domain-event-bus';
 import { NotFoundError, ValidationError } from '../../../shared-kernel/errors/domain-error';
 import { TenantContext } from '../../../shared-kernel/tenant/tenant-context';
@@ -34,7 +34,8 @@ export interface RecordInventoryTxnInput {
  * contract's own description: "Deductions are created automatically by feeding logs"). Unlike
  * TASK-022's feeding-log over-deduction (R5, recorded with a flagged discrepancy, never blocked),
  * a MANUAL adjustment that would drive quantity negative is rejected outright (error table:
- * "Adjustment would make stock invalid").
+ * "Adjustment would make stock invalid"). A receipt (`delta > 0`) carrying a cost also publishes
+ * `FeedCostIncurred` (TASK-032, → MOD-08's finance ingestion, R3).
  */
 @Injectable()
 export class RecordInventoryTxnUseCase {
@@ -89,6 +90,20 @@ export class RecordInventoryTxnUseCase {
         message: `Inventory item "${item.name}" fell below its low-stock threshold.`,
       };
       await this.events.publish(lowStockEvent);
+    }
+
+    // R3 (MOD-08): a receipt (delta > 0) carrying a cost auto-ingests as a FEED cost transaction —
+    // a plain adjustment/deduction, or a receipt with no cost, has nothing for finance to record.
+    if (input.costMinor !== undefined && input.delta > 0) {
+      const feedCostEvent: FeedCostIncurred = {
+        name: 'FeedCostIncurred',
+        eventId: randomUUID(),
+        occurredAt: new Date(),
+        projectId: this.tenant.projectId,
+        sourceRef: savedTxn.id,
+        costMinor: input.costMinor,
+      };
+      await this.events.publish(feedCostEvent);
     }
 
     return savedTxn;

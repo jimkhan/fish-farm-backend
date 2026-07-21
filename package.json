@@ -17,6 +17,7 @@
     "test": "jest",
     "test:e2e": "jest --testPathPattern e2e-spec",
     "check:purity": "jest domain-purity",
+    "perf": "jest --config jest.perf.config.js --runInBand",
     "prepare": "npm run packages:build",
     "packages:build": "npm run build --workspaces",
     "packages:pack": "npm run packages:build && mkdir -p dist-packages && npm pack --workspaces --pack-destination dist-packages",

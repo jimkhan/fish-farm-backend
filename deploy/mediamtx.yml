@@ -1,0 +1,18 @@
+# TASK-048 (ADR-012): minimal MediaMTX config for the compose `media-server` service. Live-only
+# (no recording, per ADR-012's MVP scope) — per-site RTSP sources are configured dynamically via
+# MediaMTX's own HTTP API once TASK-035 (camera-config endpoint) lands; nothing is hardcoded here.
+
+rtspAddress: :8554
+
+hls: yes
+hlsAddress: :8888
+hlsAllowOrigin: '*'
+
+webrtc: yes
+webrtcAddress: :8889
+
+api: yes
+apiAddress: :9997
+
+paths:
+  all_others:

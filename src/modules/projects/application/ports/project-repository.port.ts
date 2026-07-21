@@ -13,6 +13,10 @@ export interface ProjectRepositoryPort {
   findById(id: string): Promise<Project | null>;
   /** `projectIds` among the caller's memberships (CON-006), keyset-paginated by `createdAt, id`. */
   findPage(projectIds: string[], cursor: string | null, limit: number): Promise<ProjectListPage>;
+  /** TASK-036: every ACTIVE project across every owner — `RefreshWeatherScheduler` polls
+   * OpenWeather for each one on a fixed cadence, same "system-wide scan" shape as
+   * `BatchEventRepositoryPort.findAllActive()`. */
+  findAllActive(): Promise<Project[]>;
   save(project: Project): Promise<Project>;
 }
 

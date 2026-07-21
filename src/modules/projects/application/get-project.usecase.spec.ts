@@ -18,6 +18,7 @@ const fixture = Project.reconstitute({
 
 function setup(overrides: { project?: Project | null } = {}) {
   const projects: jest.Mocked<ProjectRepositoryPort> = {
+    findAllActive: jest.fn(),
     findById: jest
       .fn()
       .mockResolvedValue(overrides.project === undefined ? fixture : overrides.project),

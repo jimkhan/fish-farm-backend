@@ -57,6 +57,15 @@ import { TreatmentController } from './presentation/treatment.controller';
       inject: [getRepositoryToken(TreatmentPersistenceModel), TenantContext, TransactionContext],
     },
   ],
+  // LogMortalityUseCase (TASK-040): SyncModule's MutationDispatcher replays offline mortality
+  // mutations through this exact same use-case — same MOD-07→MOD-12 forward dependency shape as
+  // FeedModule's LogFeedingUseCase export. TREATMENT_REPOSITORY (TASK-031): HarvestModule needs
+  // it to check R7's withdrawal-window advisory (`Treatment.coversDate()`) — a straightforward
+  // MOD-07-internal harvest→treatment dependency, same widening pattern. MORTALITY_REPOSITORY
+  // (TASK-037): the daily-summary composition (MOD-10) reads it directly for the day's mortality
+  // count — same "reuse the existing repository port, no new port-inversion layer" reasoning as
+  // FeedModule's FEEDING_LOG_REPOSITORY export.
+  exports: [LogMortalityUseCase, TREATMENT_REPOSITORY, MORTALITY_REPOSITORY],
 })
 // Named `MortalityHealthModule`, not `HealthModule` — `./platform/health/health.module.ts`
 // already owns that name for the unrelated `/health` liveness endpoint (TASK-001).

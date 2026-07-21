@@ -48,6 +48,7 @@ function setup(overrides: { project?: Project | null; batch?: Batch | null } = {
     save: jest.fn(),
   };
   const projects: jest.Mocked<ProjectRepositoryPort> = {
+    findAllActive: jest.fn(),
     findById: jest
       .fn()
       .mockResolvedValue(overrides.project === undefined ? project : overrides.project),

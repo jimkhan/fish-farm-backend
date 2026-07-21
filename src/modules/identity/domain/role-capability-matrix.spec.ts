@@ -11,10 +11,12 @@ describe('Role capability matrix (TASK-010/TASK-011, MOD-02 F3/§6.3, AC-023/025
       canManageInventory: true,
       canManageWaterThresholds: true,
       canManageTasks: true,
+      canManageFinance: true,
+      canAccessReports: true,
     });
   });
 
-  it('WORKER can write but not manage members, project settings, treatments, inventory, water thresholds, tasks, or finance/settings (AC-026)', () => {
+  it('WORKER can write but not manage members, project settings, treatments, inventory, water thresholds, tasks, finance, finance/settings, or reports (AC-026)', () => {
     expect(ROLE_CAPABILITIES.WORKER).toEqual({
       canManageMembers: false,
       canWrite: true,
@@ -24,10 +26,12 @@ describe('Role capability matrix (TASK-010/TASK-011, MOD-02 F3/§6.3, AC-023/025
       canManageInventory: false,
       canManageWaterThresholds: false,
       canManageTasks: false,
+      canManageFinance: false,
+      canAccessReports: false,
     });
   });
 
-  it('PARTNER is read-only but can access finance/settings, and cannot manage project settings/treatments/inventory/water thresholds/tasks (AC-025)', () => {
+  it('PARTNER is read-only but can access finance/settings and reports, and cannot manage project settings/treatments/inventory/water thresholds/tasks/finance (AC-025)', () => {
     expect(ROLE_CAPABILITIES.PARTNER).toEqual({
       canManageMembers: false,
       canWrite: false,
@@ -37,6 +41,8 @@ describe('Role capability matrix (TASK-010/TASK-011, MOD-02 F3/§6.3, AC-023/025
       canManageInventory: false,
       canManageWaterThresholds: false,
       canManageTasks: false,
+      canManageFinance: false,
+      canAccessReports: true,
     });
   });
 
@@ -47,9 +53,11 @@ describe('Role capability matrix (TASK-010/TASK-011, MOD-02 F3/§6.3, AC-023/025
     expect(rolesWithCapability('canManageInventory')).toEqual(['OWNER']);
     expect(rolesWithCapability('canManageWaterThresholds')).toEqual(['OWNER']);
     expect(rolesWithCapability('canManageTasks')).toEqual(['OWNER']);
+    expect(rolesWithCapability('canManageFinance')).toEqual(['OWNER']);
     expect(rolesWithCapability('canWrite').sort()).toEqual(['OWNER', 'WORKER'].sort());
     expect(rolesWithCapability('canAccessFinanceSettings').sort()).toEqual(
       ['OWNER', 'PARTNER'].sort(),
     );
+    expect(rolesWithCapability('canAccessReports').sort()).toEqual(['OWNER', 'PARTNER'].sort());
   });
 });

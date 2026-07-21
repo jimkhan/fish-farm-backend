@@ -1,0 +1,106 @@
+# TASK-048 (MOD-01, AC-140, NFR-010): the one-VPS topology — api + postgres + a per-site media
+# server, fronted by Caddy for TLS termination. `docker compose up -d` on a clean host with a
+# valid `.env` should bring all four services up and `/health` should return `ok` through TLS.
+#
+# Local/no-domain testing: `docker compose -f docker-compose.yml -f docker-compose.local.yml up`
+# swaps Caddy to a self-signed cert (`tls internal`) and a high host port — see DEPLOYMENT.md.
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      # One secret source — mirrors the api's own DB_* vars (env.validation.ts), no separate
+      # POSTGRES_* set to keep in sync.
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USERNAME}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      MEDIA_SERVER_BASE_URL: ${MEDIA_SERVER_BASE_URL:-http://media-server:9997}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose:
+      - '3000'
+
+  # ADR-012: camera transcoding is its own deployable unit, isolated from the app tier — the api
+  # container never touches raw RTSP creds (those live in the project-owned `camera` table, per
+  # MOD-10's own design), it only needs MediaMTX reachable on the compose network.
+  media-server:
+    image: bluenviron/mediamtx:latest
+    restart: unless-stopped
+    volumes:
+      - ./deploy/mediamtx.yml:/mediamtx.yml:ro
+    ports:
+      - '8554:8554' # RTSP ingest from site cameras
+    expose:
+      - '8888' # HLS output
+      - '8889' # WebRTC output
+      - '9997' # MediaMTX HTTP API
+
+  # TASK-049 (MOD-01, AC-141, NFR-008): nightly pg_dump -> off-host S3-compatible storage via
+  # rclone, scheduled by cron inside this dedicated container — same "own deployable unit,
+  # isolated from the app tier" philosophy as media-server (ADR-012). See DEPLOYMENT.md's
+  # "Backups & restore" section for the full runbook.
+  #
+  # BACKUP_S3_REMOTE/ACCESS_KEY_ID/SECRET_ACCESS_KEY are required in production, but `:-` (not
+  # `:?`) here deliberately: compose interpolates each `-f` file independently before merging, so
+  # a `:?` here would reject docker-compose.local.yml's override (real S3 creds aren't needed for
+  # local/MinIO testing) before the override is ever applied. `entrypoint.sh`'s own `${VAR:?}`
+  # enforces the real requirement at container start instead — same fail-fast guarantee, just at
+  # boot rather than at `compose config` parse time.
+  backup:
+    build: ./deploy/backup
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      BACKUP_S3_REMOTE: ${BACKUP_S3_REMOTE:-}
+      BACKUP_S3_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY_ID:-}
+      BACKUP_S3_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_ACCESS_KEY:-}
+      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
+      BACKUP_S3_PROVIDER: ${BACKUP_S3_PROVIDER:-Other}
+      BACKUP_S3_REGION: ${BACKUP_S3_REGION:-}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      BACKUP_CRON_SCHEDULE: ${BACKUP_CRON_SCHEDULE:-0 2 * * *}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env, or use docker-compose.local.yml for self-signed local testing}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    ports:
+      - '80:80'
+      - '443:443'
+    depends_on:
+      - api
+
+volumes:
+  postgres-data:
+  caddy-data:
+  caddy-config:

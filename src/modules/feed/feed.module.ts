@@ -53,5 +53,14 @@ import { FeedingLogController } from './presentation/feeding-log.controller';
       inject: [getRepositoryToken(FeedingLogPersistenceModel), TenantContext, TransactionContext],
     },
   ],
+  // LogFeedingUseCase (TASK-040): SyncModule's MutationDispatcher replays offline feeding
+  // mutations through this exact same use-case (R6, "same domain use-cases" as online) — a
+  // straightforward MOD-05→MOD-12 forward dependency. `FeedModule` isn't `@Global()`, so
+  // `SyncModule` also needs an explicit `imports: [FeedModule]`. FEEDING_LOG_REPOSITORY
+  // (TASK-037): the daily-summary composition (MOD-10) reads it directly — the module doc's own
+  // "compose from read-models, not domain internals" (§4.5) is satisfied by reusing this
+  // already-sanctioned repository port, no new port-inversion layer needed (unlike Portfolio's
+  // MOD-03↔MOD-04 case, there's no cyclic dependency here to solve).
+  exports: [LogFeedingUseCase, FEEDING_LOG_REPOSITORY],
 })
 export class FeedModule {}

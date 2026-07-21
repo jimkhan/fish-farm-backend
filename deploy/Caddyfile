@@ -1,0 +1,11 @@
+# TASK-048 (MOD-01, AC-140, NFR-005): TLS termination for the api. Caddy issues and renews a
+# real Let's Encrypt certificate for {$DOMAIN} automatically — no separate certbot container or
+# renewal cron needed. For local/no-domain testing, use Caddyfile.local instead (docker-compose.local.yml).
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	reverse_proxy api:3000
+}

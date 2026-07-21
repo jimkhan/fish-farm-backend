@@ -27,6 +27,7 @@ function setup(overrides: { project?: Project | null } = {}) {
     save: jest.fn().mockImplementation(async (i: InventoryItem) => i),
   };
   const projects: jest.Mocked<ProjectRepositoryPort> = {
+    findAllActive: jest.fn(),
     findById: jest
       .fn()
       .mockResolvedValue(overrides.project === undefined ? project : overrides.project),

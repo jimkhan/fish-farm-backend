@@ -21,6 +21,7 @@ import { UserPersistenceModel } from '../src/modules/identity/infrastructure/per
 import { IdentityModule } from '../src/modules/identity/identity.module';
 import { GrowthModule } from '../src/modules/growth/growth.module';
 import { SamplingPersistenceModel } from '../src/modules/growth/infrastructure/persistence/sampling.persistence-model';
+import { PondFeedAccumulatorPersistenceModel } from '../src/modules/growth/infrastructure/persistence/pond-feed-accumulator.persistence-model';
 import { BatchPersistenceModel } from '../src/modules/ponds/infrastructure/persistence/batch.persistence-model';
 import { PondPersistenceModel } from '../src/modules/ponds/infrastructure/persistence/pond.persistence-model';
 import { SpeciesPersistenceModel } from '../src/modules/ponds/infrastructure/persistence/species.persistence-model';
@@ -28,6 +29,23 @@ import { StockingPersistenceModel } from '../src/modules/ponds/infrastructure/pe
 import { PondsModule } from '../src/modules/ponds/ponds.module';
 import { ProjectPersistenceModel } from '../src/modules/projects/infrastructure/persistence/project.persistence-model';
 import { ProjectsModule } from '../src/modules/projects/projects.module';
+import { InventoryItemPersistenceModel } from '../src/modules/inventory/infrastructure/persistence/inventory-item.persistence-model';
+import { InventoryTxnPersistenceModel } from '../src/modules/inventory/infrastructure/persistence/inventory-txn.persistence-model';
+import { InventoryModule } from '../src/modules/inventory/inventory.module';
+import { FeedingLogPersistenceModel } from '../src/modules/feed/infrastructure/persistence/feeding-log.persistence-model';
+import { FeedModule } from '../src/modules/feed/feed.module';
+import { HarvestPersistenceModel } from '../src/modules/harvest/infrastructure/persistence/harvest.persistence-model';
+import { HarvestModule } from '../src/modules/harvest/harvest.module';
+import { MortalityPersistenceModel } from '../src/modules/health/infrastructure/persistence/mortality.persistence-model';
+import { TreatmentPersistenceModel } from '../src/modules/health/infrastructure/persistence/treatment.persistence-model';
+import { MortalityHealthModule } from '../src/modules/health/health.module';
+import { WaterReadingPersistenceModel } from '../src/modules/water/infrastructure/persistence/water-reading.persistence-model';
+import { WaterThresholdPersistenceModel } from '../src/modules/water/infrastructure/persistence/water-threshold.persistence-model';
+import { PondActionPersistenceModel } from '../src/modules/water/infrastructure/persistence/pond-action.persistence-model';
+import { AlertPersistenceModel } from '../src/modules/notifications/infrastructure/persistence/alert.persistence-model';
+import { DeliveryAttemptPersistenceModel } from '../src/modules/notifications/infrastructure/persistence/delivery-attempt.persistence-model';
+import { DeviceTokenPersistenceModel } from '../src/modules/notifications/infrastructure/persistence/device-token.persistence-model';
+import { NotificationsModule } from '../src/modules/notifications/notifications.module';
 import { startTestPostgres } from './support/postgres-test-container';
 
 /**
@@ -49,6 +67,11 @@ function buildGrowthTestAppModule() {
       IdentityModule,
       ProjectsModule,
       PondsModule,
+      NotificationsModule,
+      InventoryModule,
+      FeedModule,
+      MortalityHealthModule,
+      HarvestModule,
       GrowthModule,
     ],
   })
@@ -102,6 +125,19 @@ describe('Sampling/Growth e2e (TASK-029, CON-020/052, AC-096/097)', () => {
         StockingPersistenceModel,
         BatchPersistenceModel,
         SamplingPersistenceModel,
+        PondFeedAccumulatorPersistenceModel,
+        InventoryItemPersistenceModel,
+        InventoryTxnPersistenceModel,
+        FeedingLogPersistenceModel,
+        HarvestPersistenceModel,
+        MortalityPersistenceModel,
+        TreatmentPersistenceModel,
+        WaterReadingPersistenceModel,
+        WaterThresholdPersistenceModel,
+        PondActionPersistenceModel,
+        AlertPersistenceModel,
+        DeliveryAttemptPersistenceModel,
+        DeviceTokenPersistenceModel,
       ],
       migrations: [join(__dirname, '..', 'migrations', '*.ts')],
     });
@@ -320,6 +356,122 @@ describe('Sampling/Growth e2e (TASK-029, CON-020/052, AC-096/097)', () => {
         .send({ sampleSize: 30, avgWeightG: 12, sampledOn: '2026-02-01', clientMutationId: 'cmid-closed' })
         .expect(409);
       expect(res.body.code).toBe('PROJECT_CLOSED');
+    });
+  });
+
+  describe('CON-058: GET /projects/{projectId}/ponds/{pondId}/fcr (TASK-030, AC-098/099)', () => {
+    async function newFcrPond(): Promise<string> {
+      const pond = await request(app.getHttpServer())
+        .post(`/projects/${projectId}/ponds`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ name: `FCR Pond ${Date.now()}-${Math.random()}`, area: 8 })
+        .expect(201);
+      return pond.body.id;
+    }
+
+    async function newFeedItem(): Promise<string> {
+      const item = await request(app.getHttpServer())
+        .post(`/projects/${projectId}/inventory`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        // SPF Golda (goldaSpeciesId) is PRAWN-category → feedTypeForSpeciesCategory expects SINKING.
+        .send({ name: `Sinking pellets ${Date.now()}-${Math.random()}`, feedType: 'SINKING', unit: 'kg' })
+        .expect(201);
+      const itemId = item.body.id;
+      await request(app.getHttpServer())
+        .post(`/projects/${projectId}/inventory/${itemId}/transactions`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ delta: 1000, reason: 'Initial stock' })
+        .expect(201);
+      return itemId;
+    }
+
+    it('AC-098/099: computes real pond-level FCR (feed ÷ gain incl. harvested weight) and per-batch survival rate', async () => {
+      const fcrPondId = await newFcrPond();
+      const feedItemId = await newFeedItem();
+
+      const stocking = await request(app.getHttpServer())
+        .post(`/projects/${projectId}/ponds/${fcrPondId}/stockings`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ speciesId: goldaSpeciesId, count: 1000, stockedOn: '2026-01-01' })
+        .expect(201);
+      const batchId = stocking.body.id;
+
+      await request(app.getHttpServer())
+        .post(`/projects/${projectId}/batches/${batchId}/feedings`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ inventoryItemId: feedItemId, qtyKg: 50, fedAt: '2026-01-20T00:00:00.000Z', clientMutationId: 'fcr-feed-1' })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .post(`/projects/${projectId}/batches/${batchId}/samplings`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ sampleSize: 30, avgWeightG: 50, sampledOn: '2026-02-01', clientMutationId: 'fcr-sample-1' })
+        .expect(201);
+      await request(app.getHttpServer())
+        .post(`/projects/${projectId}/batches/${batchId}/samplings`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ sampleSize: 30, avgWeightG: 150, sampledOn: '2026-03-01', clientMutationId: 'fcr-sample-2' })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .post(`/projects/${projectId}/batches/${batchId}/harvests`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ quantity: 100, totalWeightKg: 15, grade: 'LOCAL', harvestedOn: '2026-03-15', clientMutationId: 'fcr-harvest-1' })
+        .expect(201);
+
+      const res = await request(app.getHttpServer())
+        .get(`/projects/${projectId}/ponds/${fcrPondId}/fcr`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(200);
+
+      // survivalEstimate = 1000 - 0 - 100 = 900; gain = 900*(150-50)/1000 + 15 = 105kg
+      expect(res.body.totalFeedKg).toBe(50);
+      expect(res.body.biomassGainKg).toBeCloseTo(105);
+      expect(res.body.fcr).toBeCloseTo(50 / 105);
+      expect(res.body.batches).toEqual([{ batchId, speciesId: goldaSpeciesId, survivalRate: 0.9 }]);
+    });
+
+    it('edge case 2: fewer than 2 samplings → fcr/biomassGainKg are null, never fabricated', async () => {
+      const fcrPondId = await newFcrPond();
+      const feedItemId = await newFeedItem();
+      const stocking = await request(app.getHttpServer())
+        .post(`/projects/${projectId}/ponds/${fcrPondId}/stockings`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ speciesId: goldaSpeciesId, count: 500, stockedOn: '2026-01-01' })
+        .expect(201);
+      await request(app.getHttpServer())
+        .post(`/projects/${projectId}/batches/${stocking.body.id}/feedings`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ inventoryItemId: feedItemId, qtyKg: 20, fedAt: '2026-01-20T00:00:00.000Z', clientMutationId: 'fcr-feed-2' })
+        .expect(201);
+
+      const res = await request(app.getHttpServer())
+        .get(`/projects/${projectId}/ponds/${fcrPondId}/fcr`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(200);
+
+      expect(res.body.totalFeedKg).toBe(20);
+      expect(res.body.biomassGainKg).toBeNull();
+      expect(res.body.fcr).toBeNull();
+      expect(res.body.batches).toEqual([{ batchId: stocking.body.id, speciesId: goldaSpeciesId, survivalRate: 1 }]);
+    });
+
+    it('a non-member is denied with no data disclosure, and a pond from another project 404s', async () => {
+      const fcrPondId = await newFcrPond();
+      await request(app.getHttpServer())
+        .get(`/projects/${projectId}/ponds/${fcrPondId}/fcr`)
+        .set('Authorization', `Bearer ${outsiderToken}`)
+        .expect(403);
+
+      const otherProject = await request(app.getHttpServer())
+        .post('/projects')
+        .set('Authorization', `Bearer ${outsiderToken}`)
+        .send({ name: 'Someone Else FCR Farm', siteLat: 23.7, siteLng: 90.3 })
+        .expect(201);
+      await request(app.getHttpServer())
+        .get(`/projects/${otherProject.body.id}/ponds/${fcrPondId}/fcr`)
+        .set('Authorization', `Bearer ${outsiderToken}`)
+        .expect(404);
     });
   });
 });

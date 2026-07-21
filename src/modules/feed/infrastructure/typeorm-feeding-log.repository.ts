@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Between } from 'typeorm';
 import { ScopedRepository } from '../../../shared-kernel/tenant/scoped-repository';
 import { FeedingLog } from '../domain/feeding-log.entity';
 import { FeedingLogRepositoryPort } from '../application/ports/feeding-log-repository.port';
@@ -12,6 +13,11 @@ export class TypeOrmFeedingLogRepository implements FeedingLogRepositoryPort {
   async findByClientMutationId(clientMutationId: string): Promise<FeedingLog | null> {
     const [model] = await this.scoped.find({ clientMutationId });
     return model ? toDomain(model) : null;
+  }
+
+  async findForProjectBetween(fromInclusive: Date, toExclusive: Date): Promise<FeedingLog[]> {
+    const models = await this.scoped.find({ fedAt: Between(fromInclusive, toExclusive) });
+    return models.map(toDomain);
   }
 
   async save(log: FeedingLog): Promise<FeedingLog> {

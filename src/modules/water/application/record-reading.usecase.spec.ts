@@ -39,6 +39,8 @@ function setup(
   overrides: { project?: Project | null; pond?: Pond | null; threshold?: WaterThreshold | null } = {},
 ) {
   const readings: jest.Mocked<WaterReadingRepositoryPort> = {
+    findForProjectBetween: jest.fn().mockResolvedValue([]),
+    findForPondBetween: jest.fn().mockResolvedValue([]),
     findForPond: jest.fn(),
     findByClientMutationId: jest.fn().mockResolvedValue(null),
     save: jest.fn().mockImplementation(async (r: WaterReading) => r),
@@ -56,6 +58,7 @@ function setup(
     save: jest.fn(),
   };
   const projects: jest.Mocked<ProjectRepositoryPort> = {
+    findAllActive: jest.fn(),
     findById: jest
       .fn()
       .mockResolvedValue(overrides.project === undefined ? project : overrides.project),

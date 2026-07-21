@@ -32,6 +32,8 @@ import { PondsModule } from '../src/modules/ponds/ponds.module';
 import { ProjectPersistenceModel } from '../src/modules/projects/infrastructure/persistence/project.persistence-model';
 import { PortfolioModule } from '../src/modules/projects/portfolio.module';
 import { ProjectsModule } from '../src/modules/projects/projects.module';
+import { FinancialTxnPersistenceModel } from '../src/modules/finance/infrastructure/persistence/financial-txn.persistence-model';
+import { FinanceModule } from '../src/modules/finance/finance.module';
 import { startTestPostgres } from './support/postgres-test-container';
 
 /**
@@ -54,6 +56,7 @@ function buildPortfolioTestAppModule() {
       ProjectsModule,
       PondsModule,
       NotificationsModule,
+      FinanceModule,
       PortfolioModule,
     ],
   })
@@ -109,6 +112,7 @@ describe('Portfolio e2e (TASK-012, CON-035, AC-034/035, R5)', () => {
         StockingPersistenceModel,
         BatchPersistenceModel,
         AlertPersistenceModel,
+        FinancialTxnPersistenceModel,
       ],
       migrations: [join(__dirname, '..', 'migrations', '*.ts')],
     });

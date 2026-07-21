@@ -1,0 +1,56 @@
+# TASK-048: local/no-domain override. `docker compose -f docker-compose.yml -f docker-compose.local.yml up`
+# — swaps Caddy to a self-signed cert (no real DNS/port 80 needed) and publishes HTTPS on a high
+# host port so it doesn't need root. `DOMAIN` still must be set in `.env` (compose interpolates
+# the base file's `${DOMAIN:?...}` before merging overrides) — set it to `localhost` for this
+# mode. See DEPLOYMENT.md.
+
+services:
+  caddy:
+    volumes:
+      - ./deploy/Caddyfile.local:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    # `!override` — compose merges list keys like `ports` by default (appending to the base
+    # file's 80/443), which would still try to bind privileged ports locally. Force replacement.
+    ports: !override
+      - '8443:443'
+
+  # TASK-049 local rehearsal: a self-hosted MinIO stands in for a real S3 bucket so the whole
+  # backup -> off-host -> restore flow (AC-141) can be exercised for real without a cloud account
+  # — no public DNS/cloud credentials are reachable from this sandboxed environment, same
+  # "only path actually exercisable here" honesty as TASK-048's local self-signed TLS rehearsal.
+  minio:
+    image: minio/minio:latest
+    command: server /data
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${BACKUP_S3_ACCESS_KEY_ID:-fms-backup-local}
+      MINIO_ROOT_PASSWORD: ${BACKUP_S3_SECRET_ACCESS_KEY:-fms-backup-local-secret}
+    volumes:
+      - minio-data:/data
+
+  # One-shot: creates the local bucket, then exits. `backup` waits on it via depends_on below.
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        until mc alias set local http://minio:9000 "${BACKUP_S3_ACCESS_KEY_ID:-fms-backup-local}" "${BACKUP_S3_SECRET_ACCESS_KEY:-fms-backup-local-secret}"; do sleep 1; done
+        mc mb --ignore-existing local/fms-backups-local
+
+  backup:
+    environment:
+      BACKUP_S3_REMOTE: s3:fms-backups-local
+      BACKUP_S3_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY_ID:-fms-backup-local}
+      BACKUP_S3_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_ACCESS_KEY:-fms-backup-local-secret}
+      BACKUP_S3_ENDPOINT: http://minio:9000
+      BACKUP_S3_PROVIDER: Minio
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
+
+volumes:
+  minio-data:

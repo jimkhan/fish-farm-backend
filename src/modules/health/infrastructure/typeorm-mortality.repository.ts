@@ -27,6 +27,11 @@ export class TypeOrmMortalityRepository implements MortalityRepositoryPort {
     return models.map(toDomain);
   }
 
+  async findForProjectBetween(fromInclusive: Date, toExclusive: Date): Promise<Mortality[]> {
+    const models = await this.scoped.find({ occurredAt: Between(fromInclusive, toExclusive) });
+    return models.map(toDomain);
+  }
+
   async save(mortality: Mortality): Promise<Mortality> {
     const saved = await this.scoped.save(toPersistence(mortality));
     return toDomain(saved);

@@ -37,6 +37,21 @@ export interface RoleCapabilities {
    * OWNER explicitly). Worker's task interaction is completion (`canWrite`), not definition.
    */
   readonly canManageTasks: boolean;
+  /**
+   * May record a financial transaction (TASK-032, MOD-08 R6 — CON-033's own contract description
+   * names OWNER explicitly). Distinct from `canAccessFinanceSettings` (Partner also holds that
+   * one, for read-only finance access, R6 "Partner read-only, including financials") — Partner
+   * must never hold this one, or the read/write split collapses.
+   */
+  readonly canManageFinance: boolean;
+  /**
+   * May view the daily owner summary / reports (TASK-037, MOD-10 §2.3 — "Owner (web): ...view
+   * the daily summary, export reports"; Worker's row explicitly states "no report access").
+   * Human-confirmed to also include Partner, same OWNER+PARTNER shape as
+   * `canAccessFinanceSettings` — the module doc's own financial-export line explicitly names
+   * "OWNER + PARTNER for financial," and nothing suggests reports should be stricter than finance.
+   */
+  readonly canAccessReports: boolean;
 }
 
 export const ROLE_CAPABILITIES: Record<ProjectRole, RoleCapabilities> = {
@@ -49,6 +64,8 @@ export const ROLE_CAPABILITIES: Record<ProjectRole, RoleCapabilities> = {
     canManageInventory: true,
     canManageWaterThresholds: true,
     canManageTasks: true,
+    canManageFinance: true,
+    canAccessReports: true,
   },
   WORKER: {
     canManageMembers: false,
@@ -59,6 +76,8 @@ export const ROLE_CAPABILITIES: Record<ProjectRole, RoleCapabilities> = {
     canManageInventory: false,
     canManageWaterThresholds: false,
     canManageTasks: false,
+    canManageFinance: false,
+    canAccessReports: false,
   },
   PARTNER: {
     canManageMembers: false,
@@ -69,6 +88,8 @@ export const ROLE_CAPABILITIES: Record<ProjectRole, RoleCapabilities> = {
     canManageInventory: false,
     canManageWaterThresholds: false,
     canManageTasks: false,
+    canManageFinance: false,
+    canAccessReports: true,
   },
 };
 

@@ -32,6 +32,10 @@ const NON_PROJECT_OWNED_ALLOWLIST: string[] = [
   // (ERD DEVICE_TOKEN); delivery_attempt: scoped to an alert/device, same shape. TASK-016.
   'DeviceTokenPersistenceModel',
   'DeliveryAttemptPersistenceModel',
+  // sync_mutation: a global idempotency store keyed by clientMutationId (minted offline, ADR-016)
+  // — looked up before project membership is even resolved for that mutation, so there is no
+  // single project to scope it to. TASK-040.
+  'SyncMutationPersistenceModel',
 ];
 
 function walk(dir: string): string[] {

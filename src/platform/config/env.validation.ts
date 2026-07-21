@@ -26,6 +26,14 @@ export const envSchema = Joi.object({
   // shape as the SMS/WhatsApp stubs) rather than failing app boot; a production deployment sets
   // it, dev/test environments need not.
   FCM_SERVER_KEY: Joi.string().optional(),
+  // MOD-10 / TASK-036 (ADR-018): OpenWeather API key. Provisioned here by TASK-048 (deployment
+  // topology) ahead of TASK-036's own weather adapter — optional now, no consumer reads it yet;
+  // the adapter fails CHANNEL_UNAVAILABLE-style graceful degradation (NFR-007) when unset.
+  OPENWEATHER_API_KEY: Joi.string().optional(),
+  // MOD-10 / TASK-035 (ADR-012): the per-site MediaMTX service's base URL, reachable from the
+  // `api` container over the compose network. Provisioned here by TASK-048 ahead of TASK-035's
+  // camera-config endpoint — optional now, no consumer reads it yet.
+  MEDIA_SERVER_BASE_URL: Joi.string().uri().optional(),
 }).unknown(true);
 
 export interface AppEnv {
@@ -41,6 +49,8 @@ export interface AppEnv {
   JWT_REFRESH_TTL_DAYS: number;
   PASSWORD_RESET_TTL_MINUTES: number;
   FCM_SERVER_KEY?: string;
+  OPENWEATHER_API_KEY?: string;
+  MEDIA_SERVER_BASE_URL?: string;
 }
 
 /**

@@ -302,6 +302,92 @@ describe('Water readings/thresholds e2e (TASK-023, CON-025/026/027/027a, AC-083/
     });
   });
 
+  describe('CON-059: trends + falling-dawn-DO advisory (TASK-026, AC-087)', () => {
+    // 06:00 Dhaka local (UTC+6) = 00:00 UTC — inside the detector's 04:00–09:00 local dawn window.
+    const dawnUtc = (day: number) => `2026-06-0${day}T00:00:00.000Z`;
+    const from = '2026-05-31T00:00:00.000Z';
+    const to = '2026-06-10T00:00:00.000Z';
+
+    beforeAll(async () => {
+      // Three consecutive dawns of *in-range* but strictly declining DO — the whole point of
+      // AC-087: the advisory fires on the trend even though no single reading breaches.
+      for (const [day, value] of [
+        [1, 7.0],
+        [2, 6.5],
+        [3, 6.0],
+      ] as const) {
+        await request(app.getHttpServer())
+          .post(`/projects/${projectId}/ponds/${pondId}/water-readings`)
+          .set('Authorization', `Bearer ${workerToken}`)
+          .send({
+            parameter: 'DO',
+            value,
+            readAt: dawnUtc(day),
+            clientMutationId: `cmid-trend-do-${day}`,
+          })
+          .expect(201);
+      }
+    });
+
+    it('AC-087: querying DO trends returns the series over time AND a falling-dawn-DO advisory', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/projects/${projectId}/ponds/${pondId}/water-readings/trends`)
+        .query({ parameter: 'DO', from, to })
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(200);
+
+      expect(res.body.parameter).toBe('DO');
+      const trendReadings = res.body.series.filter((r: { readAt: string }) =>
+        r.readAt.startsWith('2026-06'),
+      );
+      expect(trendReadings).toHaveLength(3);
+      // ascending by readAt
+      const times = trendReadings.map((r: { readAt: string }) => r.readAt);
+      expect(times).toEqual([...times].sort());
+
+      expect(res.body.advisory).toMatchObject({ pattern: 'FALLING_DAWN_DO', consecutiveDays: 3 });
+      expect(res.body.advisory.dropValue).toBeCloseTo(1.0);
+    });
+
+    it('returns a null advisory for a non-DO parameter (pattern is DO-specific)', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/projects/${projectId}/ponds/${pondId}/water-readings/trends`)
+        .query({ parameter: 'PH', from, to })
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(200);
+      expect(res.body.parameter).toBe('PH');
+      expect(res.body.advisory).toBeNull();
+    });
+
+    it('a worker (any member) can read trends', async () => {
+      await request(app.getHttpServer())
+        .get(`/projects/${projectId}/ponds/${pondId}/water-readings/trends`)
+        .query({ parameter: 'DO', from, to })
+        .set('Authorization', `Bearer ${workerToken}`)
+        .expect(200);
+    });
+
+    it('rejects a missing/invalid parameter with 400', async () => {
+      await request(app.getHttpServer())
+        .get(`/projects/${projectId}/ponds/${pondId}/water-readings/trends`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(400);
+      await request(app.getHttpServer())
+        .get(`/projects/${projectId}/ponds/${pondId}/water-readings/trends`)
+        .query({ parameter: 'NOT_A_PARAM' })
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(400);
+    });
+
+    it('AC-090: a non-member is denied trends with no data disclosure', async () => {
+      await request(app.getHttpServer())
+        .get(`/projects/${projectId}/ponds/${pondId}/water-readings/trends`)
+        .query({ parameter: 'DO', from, to })
+        .set('Authorization', `Bearer ${outsiderToken}`)
+        .expect(403);
+    });
+  });
+
   describe('AC-093: closed-project write-guard', () => {
     it('recording a reading on a CLOSED project returns PROJECT_CLOSED/409', async () => {
       const project = await request(app.getHttpServer())

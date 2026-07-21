@@ -40,6 +40,7 @@ const batch = Batch.reconstitute({
 
 function setup(overrides: { project?: Project | null; batch?: Batch | null } = {}) {
   const mortalities: jest.Mocked<MortalityRepositoryPort> = {
+    findForProjectBetween: jest.fn().mockResolvedValue([]),
     findByClientMutationId: jest.fn().mockResolvedValue(null),
     findForBatchBetween: jest.fn().mockResolvedValue([]),
     save: jest.fn().mockImplementation(async (m: Mortality) => m),
@@ -50,6 +51,7 @@ function setup(overrides: { project?: Project | null; batch?: Batch | null } = {
     save: jest.fn(),
   };
   const projects: jest.Mocked<ProjectRepositoryPort> = {
+    findAllActive: jest.fn(),
     findById: jest
       .fn()
       .mockResolvedValue(overrides.project === undefined ? project : overrides.project),

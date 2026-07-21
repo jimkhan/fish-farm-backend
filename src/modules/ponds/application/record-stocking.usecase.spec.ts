@@ -57,6 +57,7 @@ function setup(
     findAll: jest.fn().mockResolvedValue(overrides.species ?? [golda]),
   };
   const projects: jest.Mocked<ProjectRepositoryPort> = {
+    findAllActive: jest.fn(),
     findById: jest
       .fn()
       .mockResolvedValue(overrides.project === undefined ? project : overrides.project),

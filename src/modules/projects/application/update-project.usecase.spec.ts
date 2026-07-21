@@ -23,6 +23,7 @@ function projectFixture(overrides: Partial<Parameters<typeof Project.reconstitut
 
 function setup(overrides: { project?: Project | null } = {}) {
   const projects: jest.Mocked<ProjectRepositoryPort> = {
+    findAllActive: jest.fn(),
     findById: jest
       .fn()
       .mockResolvedValue(overrides.project === undefined ? projectFixture() : overrides.project),

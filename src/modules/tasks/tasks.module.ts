@@ -67,5 +67,11 @@ import { TasksController } from './presentation/tasks.controller';
       inject: [getRepositoryToken(TaskLogPersistenceModel), TenantContext, TransactionContext],
     },
   ],
+  // CompleteTaskUseCase (TASK-040): SyncModule's MutationDispatcher replays offline task-
+  // completion mutations through this exact same use-case — same widening pattern as every other
+  // cross-module export this session. TASK_REPOSITORY/TASK_LOG_REPOSITORY (TASK-037): the
+  // daily-summary composition (MOD-10) reads both directly (done count from logs, missed count
+  // from task status) — same "reuse the existing repository port" reasoning as Feed/Health.
+  exports: [CompleteTaskUseCase, TASK_REPOSITORY, TASK_LOG_REPOSITORY],
 })
 export class TasksModule {}

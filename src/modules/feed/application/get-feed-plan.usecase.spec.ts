@@ -76,6 +76,8 @@ function setup(
     findAll: jest.fn().mockResolvedValue(overrides.allSpecies ?? [carp, golda]),
   };
   const readings: jest.Mocked<WaterReadingRepositoryPort> = {
+    findForProjectBetween: jest.fn().mockResolvedValue([]),
+    findForPondBetween: jest.fn().mockResolvedValue([]),
     findForPond: jest.fn().mockImplementation((_pondId: string, parameter?: string) =>
       Promise.resolve((overrides.readings ?? []).filter((r) => r.parameter === parameter)),
     ),

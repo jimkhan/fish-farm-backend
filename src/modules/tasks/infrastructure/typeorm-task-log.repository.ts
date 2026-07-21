@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Between } from 'typeorm';
 import { ScopedRepository } from '../../../shared-kernel/tenant/scoped-repository';
 import { TaskLog } from '../domain/task-log.entity';
 import { TaskLogRepositoryPort } from '../application/ports/task-log-repository.port';
@@ -12,6 +13,11 @@ export class TypeOrmTaskLogRepository implements TaskLogRepositoryPort {
   async findByClientMutationId(clientMutationId: string): Promise<TaskLog | null> {
     const [model] = await this.scoped.find({ clientMutationId });
     return model ? toDomain(model) : null;
+  }
+
+  async findForProjectBetween(fromInclusive: Date, toExclusive: Date): Promise<TaskLog[]> {
+    const models = await this.scoped.find({ completedAt: Between(fromInclusive, toExclusive) });
+    return models.map(toDomain);
   }
 
   async save(taskLog: TaskLog): Promise<TaskLog> {

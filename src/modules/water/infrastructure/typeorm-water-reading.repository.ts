@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Between } from 'typeorm';
 import { ScopedRepository } from '../../../shared-kernel/tenant/scoped-repository';
 import { WaterReading, WaterParameter } from '../domain/water-reading.entity';
 import { WaterReadingRepositoryPort } from '../application/ports/water-reading-repository.port';
@@ -11,6 +12,25 @@ export class TypeOrmWaterReadingRepository implements WaterReadingRepositoryPort
 
   async findForPond(pondId: string, parameter?: WaterParameter): Promise<WaterReading[]> {
     const models = await this.scoped.find(parameter ? { pondId, parameter } : { pondId });
+    return models.map(toDomain);
+  }
+
+  async findForPondBetween(
+    pondId: string,
+    parameter: WaterParameter,
+    fromInclusive: Date,
+    toExclusive: Date,
+  ): Promise<WaterReading[]> {
+    const models = await this.scoped.find({
+      pondId,
+      parameter,
+      readAt: Between(fromInclusive, toExclusive),
+    });
+    return models.map(toDomain);
+  }
+
+  async findForProjectBetween(fromInclusive: Date, toExclusive: Date): Promise<WaterReading[]> {
+    const models = await this.scoped.find({ readAt: Between(fromInclusive, toExclusive) });
     return models.map(toDomain);
   }
 

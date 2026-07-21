@@ -21,6 +21,7 @@ function task(overrides: Partial<Parameters<typeof Task.reconstitute>[0]> = {}) 
 
 function setup(overrides: { task?: Task | null; existingLog?: TaskLog | null } = {}) {
   const taskLogs: jest.Mocked<TaskLogRepositoryPort> = {
+    findForProjectBetween: jest.fn().mockResolvedValue([]),
     findByClientMutationId: jest
       .fn()
       .mockResolvedValue(overrides.existingLog === undefined ? null : overrides.existingLog),

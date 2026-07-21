@@ -76,6 +76,7 @@ function setup(
   } = {},
 ) {
   const projects: jest.Mocked<ProjectRepositoryPort> = {
+    findAllActive: jest.fn(),
     findById: jest
       .fn()
       .mockResolvedValue(overrides.project === undefined ? project : overrides.project),
@@ -100,6 +101,7 @@ function setup(
     save: jest.fn().mockImplementation((txn) => Promise.resolve(txn)),
   };
   const feedingLogs: jest.Mocked<FeedingLogRepositoryPort> = {
+    findForProjectBetween: jest.fn().mockResolvedValue([]),
     findByClientMutationId: jest.fn().mockResolvedValue(overrides.existingLog ?? null),
     save: jest.fn().mockImplementation((log: FeedingLog) => Promise.resolve(log)),
   };

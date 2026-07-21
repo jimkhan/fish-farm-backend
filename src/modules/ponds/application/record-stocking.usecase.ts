@@ -106,6 +106,7 @@ export class RecordStockingUseCase {
       batchId: savedBatch.id,
       pondId,
       speciesId: input.speciesId,
+      stockingCostMinor: input.stockingCostMinor,
     };
     await this.events.publish(stockingEvent);
 

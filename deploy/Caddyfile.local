@@ -1,0 +1,10 @@
+# TASK-048: local/no-domain testing variant — Caddy's built-in internal CA issues a self-signed
+# cert (`tls internal`) instead of attempting real Let's Encrypt (which needs a public domain and
+# inbound :80/:443). Used by docker-compose.local.yml. `curl -k` (or trust Caddy's root CA) to
+# verify TLS actually terminates.
+
+https://localhost {
+	tls internal
+
+	reverse_proxy api:3000
+}
