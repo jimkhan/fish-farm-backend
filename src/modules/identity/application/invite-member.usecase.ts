@@ -6,6 +6,7 @@ import { TenantContext } from '../../../shared-kernel/tenant/tenant-context';
 import { ProjectRole } from '../../../shared-kernel/tenant/membership-resolver.port';
 import { ProjectMembership } from '../domain/project-membership.entity';
 import { WorkerAlreadyAssignedError } from '../domain/identity-errors';
+import { MemberView, toMemberView } from './member-view';
 import { MEMBERSHIP_DIRECTORY, MembershipDirectoryPort } from './ports/membership-directory.port';
 import { PASSWORD_HASHER, PasswordHasherPort } from './ports/password-hasher.port';
 import {
@@ -31,7 +32,7 @@ export class InviteMemberUseCase {
     private readonly tenant: TenantContext,
   ) {}
 
-  async execute(email: string, role: ProjectRole): Promise<ProjectMembership> {
+  async execute(email: string, role: ProjectRole): Promise<MemberView> {
     let user = await this.users.findByEmail(email);
     if (!user) {
       // R8: a pending account, scoped to no project until the membership below creates one. The
@@ -50,7 +51,7 @@ export class InviteMemberUseCase {
     // Edge case 9: a duplicate invite of the same user to this project is idempotent.
     const existingHere = existingMemberships.find((m) => m.projectId === this.tenant.projectId);
     if (existingHere) {
-      return existingHere;
+      return toMemberView(existingHere, user);
     }
 
     // R4/AC-024: a user already an active Worker on another project cannot be assigned Worker again.
@@ -79,6 +80,6 @@ export class InviteMemberUseCase {
     };
     await this.events.publish(event);
 
-    return saved;
+    return toMemberView(saved, user);
   }
 }

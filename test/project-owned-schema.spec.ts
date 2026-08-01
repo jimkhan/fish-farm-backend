@@ -36,6 +36,10 @@ const NON_PROJECT_OWNED_ALLOWLIST: string[] = [
   // — looked up before project membership is even resolved for that mutation, so there is no
   // single project to scope it to. TASK-040.
   'SyncMutationPersistenceModel',
+  // device: carries its own project_id, but is authenticated and resolved by its key digest
+  // *before* any tenant scope exists (the device is not a project member) — so it is read through
+  // a plain unscoped Repository, not ScopedRepository, exactly like refresh_token. TASK-027.
+  'DevicePersistenceModel',
 ];
 
 function walk(dir: string): string[] {

@@ -81,6 +81,9 @@ describe('InviteMemberUseCase (TASK-010, CON-011, AC-024/029, R4/R8/R9)', () => 
     expect(result.userId).toBe('u-1');
     expect(result.projectId).toBe('p-target');
     expect(result.role).toBe('WORKER');
+    // TASK-047: the returned view carries the member's identity for the owner Members UI.
+    expect(result.email).toBe('existing@example.com');
+    expect(result.name).toBe('Existing');
     expect(memberships.save).toHaveBeenCalledTimes(1);
     expect(events.publish).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'MemberInvited', userId: 'u-1', role: 'WORKER' }),

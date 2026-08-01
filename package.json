@@ -21,6 +21,7 @@
     "prepare": "npm run packages:build",
     "packages:build": "npm run build --workspaces",
     "packages:pack": "npm run packages:build && mkdir -p dist-packages && npm pack --workspaces --pack-destination dist-packages",
+    "seed": "ts-node -r tsconfig-paths/register src/platform/persistence/seed.ts",
     "typeorm": "ts-node ./node_modules/typeorm/cli.js -d src/platform/persistence/data-source.ts",
     "migration:generate": "npm run typeorm -- migration:generate -p migrations/",
     "migration:run": "npm run typeorm -- migration:run",

@@ -231,10 +231,13 @@ describe('Membership/RBAC e2e (TASK-010, CON-005/010/011/012, AC-021…027, AC-0
   describe('AC-022: MembershipResolver / ProjectScopeGuard integration (real binding, no fake)', () => {
     it('a member can reach a project-scoped route for a project they belong to', async () => {
       const token = await accessTokenFor(OWNER_EMAIL, OWNER_PASSWORD);
-      await request(app.getHttpServer())
+      const res = await request(app.getHttpServer())
         .get(`/projects/${PROJECT_1}/members`)
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
+      // TASK-047: each row is joined with the member's identity so the owner UI shows who they are.
+      const ownerRow = res.body.find((m: { role: string }) => m.role === 'OWNER');
+      expect(ownerRow).toMatchObject({ email: OWNER_EMAIL, name: 'P1 Owner' });
     });
 
     it('the same member is denied a project they do not belong to (never leaks existence)', async () => {
@@ -287,6 +290,7 @@ describe('Membership/RBAC e2e (TASK-010, CON-005/010/011/012, AC-021…027, AC-0
         .expect(201);
       expect(res.body.role).toBe('PARTNER');
       expect(res.body.projectId).toBe(PROJECT_1);
+      expect(res.body.email).toBe(WORKER_ELSEWHERE_EMAIL);
     });
   });
 

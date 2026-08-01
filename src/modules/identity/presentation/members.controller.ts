@@ -9,29 +9,34 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { ProjectMembership } from '../domain/project-membership.entity';
 import { rolesWithCapability } from '../domain/role-capability-matrix';
 import { InviteMemberUseCase } from '../application/invite-member.usecase';
 import { ListMembersUseCase } from '../application/list-members.usecase';
+import { MemberView } from '../application/member-view';
 import { RemoveMemberUseCase } from '../application/remove-member.usecase';
 import { CreateMembershipDto } from './dtos/create-membership.dto';
 import { Roles } from './roles.decorator';
 import { RolesGuard } from './roles.guard';
 
-/** Wire shape of the `Membership` schema (contracts/openapi.yaml). */
+/** Wire shape of the `Membership` schema (contracts/openapi.yaml) — includes the member's
+ * identity (email/name) so the owner Members UI can show who each member is (TASK-047). */
 interface MembershipResponse {
   id: string;
   userId: string;
   projectId: string;
   role: string;
+  email: string;
+  name: string;
 }
 
-function toResponse(membership: ProjectMembership): MembershipResponse {
+function toResponse(member: MemberView): MembershipResponse {
   return {
-    id: membership.id,
-    userId: membership.userId,
-    projectId: membership.projectId,
-    role: membership.role,
+    id: member.id,
+    userId: member.userId,
+    projectId: member.projectId,
+    role: member.role,
+    email: member.email,
+    name: member.name,
   };
 }
 

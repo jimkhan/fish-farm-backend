@@ -10,19 +10,25 @@ import { TenantModule } from '../../shared-kernel/tenant/tenant.module';
 import { ConfigureThresholdsUseCase } from './application/configure-thresholds.usecase';
 import { GetThresholdsUseCase } from './application/get-thresholds.usecase';
 import { GetWaterTrendsUseCase } from './application/get-water-trends.usecase';
+import { IngestSensorUseCase } from './application/ingest-sensor.usecase';
 import { ListReadingsUseCase } from './application/list-readings.usecase';
 import { LogPondActionUseCase } from './application/log-pond-action.usecase';
+import { DEVICE_REPOSITORY } from './application/ports/device-repository.port';
 import { POND_ACTION_REPOSITORY } from './application/ports/pond-action-repository.port';
 import { WATER_READING_REPOSITORY } from './application/ports/water-reading-repository.port';
 import { WATER_THRESHOLD_REPOSITORY } from './application/ports/water-threshold-repository.port';
 import { RaiseEmergencyUseCase } from './application/raise-emergency.usecase';
 import { RecordReadingUseCase } from './application/record-reading.usecase';
+import { DevicePersistenceModel } from './infrastructure/persistence/device.persistence-model';
 import { PondActionPersistenceModel } from './infrastructure/persistence/pond-action.persistence-model';
 import { WaterReadingPersistenceModel } from './infrastructure/persistence/water-reading.persistence-model';
 import { WaterThresholdPersistenceModel } from './infrastructure/persistence/water-threshold.persistence-model';
+import { TypeOrmDeviceRepository } from './infrastructure/typeorm-device.repository';
 import { TypeOrmPondActionRepository } from './infrastructure/typeorm-pond-action.repository';
 import { TypeOrmWaterReadingRepository } from './infrastructure/typeorm-water-reading.repository';
 import { TypeOrmWaterThresholdRepository } from './infrastructure/typeorm-water-threshold.repository';
+import { DeviceKeyGuard } from './presentation/device-key.guard';
+import { SensorIngestionController } from './presentation/sensor.controller';
 import { WaterEventsController } from './presentation/water-events.controller';
 import { WaterReadingsController } from './presentation/water-readings.controller';
 import { WaterThresholdsController } from './presentation/water-thresholds.controller';
@@ -42,16 +48,24 @@ import { WaterThresholdsController } from './presentation/water-thresholds.contr
       WaterReadingPersistenceModel,
       WaterThresholdPersistenceModel,
       PondActionPersistenceModel,
+      DevicePersistenceModel,
     ]),
     TenantModule,
     AuditModule,
     EventsModule,
   ],
-  controllers: [WaterReadingsController, WaterThresholdsController, WaterEventsController],
+  controllers: [
+    WaterReadingsController,
+    WaterThresholdsController,
+    WaterEventsController,
+    SensorIngestionController,
+  ],
   providers: [
     ListReadingsUseCase,
     GetWaterTrendsUseCase,
     RecordReadingUseCase,
+    IngestSensorUseCase,
+    DeviceKeyGuard,
     GetThresholdsUseCase,
     ConfigureThresholdsUseCase,
     RaiseEmergencyUseCase,
@@ -84,6 +98,13 @@ import { WaterThresholdsController } from './presentation/water-thresholds.contr
         transactions: TransactionContext,
       ) => new TypeOrmPondActionRepository(new ScopedRepository(repository, tenant, transactions)),
       inject: [getRepositoryToken(PondActionPersistenceModel), TenantContext, TransactionContext],
+    },
+    // DEVICE_REPOSITORY (TASK-027): deliberately NOT a ScopedRepository — device authentication
+    // resolves a device by its key digest before any tenant scope exists, so it uses a plain
+    // unscoped Repository (same as refresh tokens).
+    {
+      provide: DEVICE_REPOSITORY,
+      useClass: TypeOrmDeviceRepository,
     },
   ],
   // WATER_READING_REPOSITORY/WATER_THRESHOLD_REPOSITORY (TASK-021): MOD-05's feed module needs
