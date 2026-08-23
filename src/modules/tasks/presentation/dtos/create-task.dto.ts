@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsPositive, IsString, IsUUID } from 'class-validator';
+import { IsDateString, IsInt, IsOptional, IsPositive, IsString, IsUUID } from 'class-validator';
 
 /** `CreateTask` schema (contracts/openapi.yaml, CON-030). */
 export class CreateTaskDto {
@@ -13,4 +13,12 @@ export class CreateTaskDto {
   @IsInt()
   @IsPositive()
   recurrenceDays?: number;
+
+  @IsOptional()
+  @IsDateString()
+  dueOn?: string;
+
+  @IsOptional()
+  @IsUUID()
+  assigneeUserId?: string;
 }

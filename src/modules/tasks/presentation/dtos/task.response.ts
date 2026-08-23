@@ -9,6 +9,7 @@ export interface TaskResponse {
   recurrenceDays: number | null;
   status: string;
   dueOn: string;
+  assigneeUserId: string | null;
 }
 
 export function toTaskResponse(task: Task): TaskResponse {
@@ -20,5 +21,6 @@ export function toTaskResponse(task: Task): TaskResponse {
     recurrenceDays: task.recurrenceDays,
     status: task.status,
     dueOn: task.dueOn.toISOString().slice(0, 10),
+    assigneeUserId: task.assigneeUserId,
   };
 }

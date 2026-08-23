@@ -21,4 +21,8 @@ export class TaskPersistenceModel extends BaseProjectOwnedPersistenceModel {
   @Index()
   @Column('date', { name: 'due_on' })
   dueOn!: Date;
+
+  @Index()
+  @Column('uuid', { name: 'assignee_user_id', nullable: true })
+  assigneeUserId!: string | null;
 }

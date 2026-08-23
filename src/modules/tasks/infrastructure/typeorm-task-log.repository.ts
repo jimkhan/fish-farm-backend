@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Between } from 'typeorm';
+import { halfOpenRange } from '../../../platform/persistence/half-open-range';
 import { ScopedRepository } from '../../../shared-kernel/tenant/scoped-repository';
 import { TaskLog } from '../domain/task-log.entity';
 import { TaskLogRepositoryPort } from '../application/ports/task-log-repository.port';
@@ -16,7 +16,9 @@ export class TypeOrmTaskLogRepository implements TaskLogRepositoryPort {
   }
 
   async findForProjectBetween(fromInclusive: Date, toExclusive: Date): Promise<TaskLog[]> {
-    const models = await this.scoped.find({ completedAt: Between(fromInclusive, toExclusive) });
+    const models = await this.scoped.find({
+      completedAt: halfOpenRange(fromInclusive, toExclusive),
+    });
     return models.map(toDomain);
   }
 

@@ -12,11 +12,13 @@ describe('ListTasksUseCase (TASK-041, CON-029)', () => {
       recurrenceDays: 15,
       status: 'SCHEDULED',
       dueOn: new Date('2026-02-10T00:00:00Z'),
+      assigneeUserId: null,
     });
     const tasks: jest.Mocked<TaskRepositoryPort> = {
       findAllInCurrentProject: jest.fn().mockResolvedValue([stale]),
       findById: jest.fn(),
       save: jest.fn(),
+      deleteById: jest.fn(),
     };
     const useCase = new ListTasksUseCase(tasks);
 

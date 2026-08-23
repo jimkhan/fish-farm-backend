@@ -23,4 +23,8 @@ export class TypeOrmTaskRepository implements TaskRepositoryPort {
     const saved = await this.scoped.save(toPersistence(task));
     return toDomain(saved);
   }
+
+  async deleteById(taskId: string): Promise<boolean> {
+    return this.scoped.deleteById(taskId);
+  }
 }

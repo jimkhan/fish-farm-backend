@@ -12,6 +12,7 @@ function task(overrides: Partial<Parameters<typeof Task.reconstitute>[0]> = {}) 
     recurrenceDays: null,
     status: 'DUE',
     dueOn: new Date('2026-02-10T00:00:00Z'),
+    assigneeUserId: null,
     ...overrides,
   });
 }

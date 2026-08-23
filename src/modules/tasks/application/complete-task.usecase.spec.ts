@@ -15,6 +15,7 @@ function task(overrides: Partial<Parameters<typeof Task.reconstitute>[0]> = {}) 
     recurrenceDays: 10,
     status: 'DUE',
     dueOn: new Date('2026-02-15T00:00:00Z'),
+    assigneeUserId: null,
     ...overrides,
   });
 }
@@ -31,6 +32,7 @@ function setup(overrides: { task?: Task | null; existingLog?: TaskLog | null } =
     findAllInCurrentProject: jest.fn(),
     findById: jest.fn().mockResolvedValue(overrides.task === undefined ? task() : overrides.task),
     save: jest.fn().mockImplementation(async (t: Task) => t),
+    deleteById: jest.fn(),
   };
   const tenant = new TenantContext({ tenant: { userId: 'u-1', projectId: 'p-1', role: 'WORKER' } });
 

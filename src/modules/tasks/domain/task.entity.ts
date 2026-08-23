@@ -1,11 +1,9 @@
 export type TaskStatus = 'SCHEDULED' | 'DUE' | 'DONE' | 'MISSED';
 
 /**
- * Pure domain `Task` (TASK-041, MOD-12 §4.3/F5, ERD `TASK`). `dueOn` is server-computed, never
- * client-supplied (`CreateTask` carries no `dueOn` field) — a freshly defined task is due
- * immediately (today), matching the farm-management intuition that a newly scheduled recurring
- * chore (chain-drag, liming…) should start now, not at some unstated future date the spec never
- * names. A documented judgment call — no business rule pins the initial due date.
+ * Pure domain `Task` (TASK-041, MOD-12 §4.3/F5, ERD `TASK`). `dueOn` may be supplied on create
+ * (optional client date); omitted → today. Recurring completions still roll `dueOn` forward
+ * from the completion date. `assigneeUserId` is informational (any canWrite may complete).
  */
 export interface TaskProps {
   readonly id: string;
@@ -15,6 +13,7 @@ export interface TaskProps {
   readonly recurrenceDays: number | null;
   readonly status: TaskStatus;
   readonly dueOn: Date;
+  readonly assigneeUserId: string | null;
 }
 
 export class Task {
@@ -24,7 +23,10 @@ export class Task {
     return new Task(props);
   }
 
-  /** A freshly defined task is immediately actionable — `dueOn = today`, `status = 'DUE'`. */
+  /**
+   * Creates a task due on `dueOn` (or today when omitted). Status is derived via
+   * {@link recomputeStatus} so a future due date lands as `SCHEDULED`.
+   */
   static create(props: {
     id: string;
     projectId: string;
@@ -32,16 +34,21 @@ export class Task {
     title: string;
     recurrenceDays: number | null;
     today: Date;
+    dueOn?: Date;
+    assigneeUserId?: string | null;
   }): Task {
-    return new Task({
+    const dueOn = startOfUtcDay(props.dueOn ?? props.today);
+    const draft = new Task({
       id: props.id,
       projectId: props.projectId,
       pondId: props.pondId,
       title: props.title,
       recurrenceDays: props.recurrenceDays,
       status: 'DUE',
-      dueOn: startOfUtcDay(props.today),
+      dueOn,
+      assigneeUserId: props.assigneeUserId ?? null,
     });
+    return draft.recomputeStatus(props.today);
   }
 
   get id(): string {
@@ -72,6 +79,37 @@ export class Task {
     return this.props.dueOn;
   }
 
+  get assigneeUserId(): string | null {
+    return this.props.assigneeUserId;
+  }
+
+  /**
+   * Owner manage — partial update of definition fields. Changing `dueOn` recomputes status
+   * against `today`. `DONE` one-offs stay terminal (status not recomputed).
+   */
+  update(
+    patch: {
+      title?: string;
+      pondId?: string | null;
+      recurrenceDays?: number | null;
+      dueOn?: Date;
+      assigneeUserId?: string | null;
+    },
+    today: Date,
+  ): Task {
+    const next = new Task({
+      ...this.props,
+      title: patch.title ?? this.props.title,
+      pondId: patch.pondId !== undefined ? patch.pondId : this.props.pondId,
+      recurrenceDays:
+        patch.recurrenceDays !== undefined ? patch.recurrenceDays : this.props.recurrenceDays,
+      dueOn: patch.dueOn !== undefined ? startOfUtcDay(patch.dueOn) : this.props.dueOn,
+      assigneeUserId:
+        patch.assigneeUserId !== undefined ? patch.assigneeUserId : this.props.assigneeUserId,
+    });
+    return patch.dueOn !== undefined ? next.recomputeStatus(today) : next;
+  }
+
   /**
    * F5/R10 (AC-135): recomputes status against `today` (UTC calendar day) — `SCHEDULED→DUE` once
    * the due date arrives, `DUE→MISSED` once it passes uncompleted. `DONE` is terminal for a
@@ -84,7 +122,8 @@ export class Task {
     }
     const dueDay = startOfUtcDay(this.props.dueOn);
     const todayDay = startOfUtcDay(today);
-    const next: TaskStatus = dueDay < todayDay ? 'MISSED' : dueDay.getTime() === todayDay.getTime() ? 'DUE' : 'SCHEDULED';
+    const next: TaskStatus =
+      dueDay < todayDay ? 'MISSED' : dueDay.getTime() === todayDay.getTime() ? 'DUE' : 'SCHEDULED';
     return next === this.props.status ? this : new Task({ ...this.props, status: next });
   }
 

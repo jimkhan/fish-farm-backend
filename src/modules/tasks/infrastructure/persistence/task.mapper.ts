@@ -12,6 +12,7 @@ export function toDomain(model: TaskPersistenceModel): Task {
     // TypeORM returns Postgres `date` columns as 'YYYY-MM-DD' strings at runtime, not Date
     // objects — `new Date(...)` normalizes either shape.
     dueOn: new Date(model.dueOn),
+    assigneeUserId: model.assigneeUserId,
   });
 }
 
@@ -24,5 +25,6 @@ export function toPersistence(entity: Task): TaskPersistenceModel {
   model.recurrenceDays = entity.recurrenceDays;
   model.status = entity.status;
   model.dueOn = entity.dueOn;
+  model.assigneeUserId = entity.assigneeUserId;
   return model;
 }

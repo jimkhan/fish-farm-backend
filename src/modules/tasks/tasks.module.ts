@@ -9,8 +9,10 @@ import { TenantContext } from '../../shared-kernel/tenant/tenant-context';
 import { TenantModule } from '../../shared-kernel/tenant/tenant.module';
 import { CompleteTaskUseCase } from './application/complete-task.usecase';
 import { CreateTaskUseCase } from './application/create-task.usecase';
+import { DeleteTaskUseCase } from './application/delete-task.usecase';
 import { ListTasksUseCase } from './application/list-tasks.usecase';
 import { MissedTaskScheduler } from './application/missed-task.scheduler';
+import { UpdateTaskUseCase } from './application/update-task.usecase';
 import { TASK_EVENT_REPOSITORY } from './application/ports/task-event-repository.port';
 import { TASK_LOG_REPOSITORY } from './application/ports/task-log-repository.port';
 import { TASK_REPOSITORY } from './application/ports/task-repository.port';
@@ -43,6 +45,8 @@ import { TasksController } from './presentation/tasks.controller';
   providers: [
     ListTasksUseCase,
     CreateTaskUseCase,
+    UpdateTaskUseCase,
+    DeleteTaskUseCase,
     CompleteTaskUseCase,
     MissedTaskScheduler,
     { provide: TASK_EVENT_REPOSITORY, useClass: TypeOrmTaskEventRepository },
