@@ -26,4 +26,12 @@ export class RefreshTokenPersistenceModel {
 
   @Column('timestamptz', { name: 'revoked_at', nullable: true })
   revokedAt!: Date | null;
+
+  /**
+   * Set only when this token was superseded by normal rotation — never by `revokeFamily`
+   * (replay detected) or `revokeAllForUser` (password reset). That distinction is what makes
+   * the rotation grace window safe; see `RefreshToken.wasRotatedWithin`.
+   */
+  @Column('timestamptz', { name: 'rotated_at', nullable: true })
+  rotatedAt!: Date | null;
 }

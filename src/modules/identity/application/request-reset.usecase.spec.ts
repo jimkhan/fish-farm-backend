@@ -34,6 +34,7 @@ function setup(overrides: { user?: User | null } = {}) {
     save: jest.fn().mockResolvedValue(undefined),
     findByHash: jest.fn(),
     markUsed: jest.fn(),
+    markAllUsedForUser: jest.fn(),
   };
   const notifier: jest.Mocked<PasswordResetNotifierPort> = {
     send: jest.fn().mockResolvedValue(undefined),

@@ -9,6 +9,7 @@ export function toDomain(model: RefreshTokenPersistenceModel): RefreshToken {
     tokenHash: model.tokenHash,
     expiresAt: model.expiresAt,
     revokedAt: model.revokedAt,
+    rotatedAt: model.rotatedAt,
   });
 }
 
@@ -20,5 +21,6 @@ export function toPersistence(entity: RefreshToken): RefreshTokenPersistenceMode
   model.tokenHash = entity.tokenHash;
   model.expiresAt = entity.expiresAt;
   model.revokedAt = entity.revokedAt;
+  model.rotatedAt = entity.rotatedAt;
   return model;
 }

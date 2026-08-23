@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { PasswordResetToken } from '../domain/password-reset-token.entity';
 import { PasswordResetTokenRepositoryPort } from '../application/ports/password-reset-token-repository.port';
 import { toDomain, toPersistence } from './persistence/password-reset-token.mapper';
@@ -24,5 +24,9 @@ export class TypeOrmPasswordResetTokenRepository implements PasswordResetTokenRe
 
   async markUsed(id: string, usedAt: Date): Promise<void> {
     await this.repository.update({ id }, { usedAt });
+  }
+
+  async markAllUsedForUser(userId: string, usedAt: Date): Promise<void> {
+    await this.repository.update({ userId, usedAt: IsNull() }, { usedAt });
   }
 }

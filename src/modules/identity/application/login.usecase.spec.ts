@@ -39,8 +39,9 @@ function setup(overrides: { user?: User | null; passwordValid?: boolean } = {}) 
   const refreshTokens: jest.Mocked<RefreshTokenRepositoryPort> = {
     save: jest.fn().mockResolvedValue(undefined),
     findByHash: jest.fn(),
-    revokeById: jest.fn(),
+    markRotated: jest.fn(),
     revokeFamily: jest.fn(),
+    revokeAllForUser: jest.fn(),
   };
   const accessTokens: jest.Mocked<AccessTokenIssuerPort> = {
     issue: jest.fn().mockReturnValue({ token: 'jwt.access.token', expiresInSeconds: 900 }),

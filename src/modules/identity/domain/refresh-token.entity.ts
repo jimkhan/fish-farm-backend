@@ -14,6 +14,8 @@ export interface RefreshTokenProps {
   readonly tokenHash: string;
   readonly expiresAt: Date;
   readonly revokedAt: Date | null;
+  /** Set only by normal rotation — see {@link RefreshToken.wasRotatedWithin}. */
+  readonly rotatedAt: Date | null;
 }
 
 export class RefreshToken {
@@ -49,6 +51,26 @@ export class RefreshToken {
 
   get isRevoked(): boolean {
     return this.props.revokedAt !== null;
+  }
+
+  get rotatedAt(): Date | null {
+    return this.props.rotatedAt;
+  }
+
+  /**
+   * True when this token was superseded by **normal rotation** within the last `graceMs` —
+   * i.e. a concurrent refresh, not a replay attack.
+   *
+   * A token revoked by `revokeFamily` (replay detected) or `revokeAllForUser` (password reset)
+   * has a null `rotatedAt` and can never satisfy this, so a security revocation is never
+   * undone by the grace window. Outside the window, a rotated token is a genuine replay again.
+   */
+  wasRotatedWithin(graceMs: number, now: Date = new Date()): boolean {
+    if (this.props.rotatedAt === null) {
+      return false;
+    }
+    const elapsed = now.getTime() - this.props.rotatedAt.getTime();
+    return elapsed >= 0 && elapsed <= graceMs;
   }
 
   get isExpired(): boolean {

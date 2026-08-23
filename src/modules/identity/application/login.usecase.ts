@@ -48,6 +48,7 @@ export class LoginUseCase {
       tokenHash: hashOpaqueToken(rawRefreshToken),
       expiresAt: new Date(Date.now() + refreshTtlDays * 24 * 60 * 60 * 1000),
       revokedAt: null,
+      rotatedAt: null,
     });
     await this.refreshTokens.save(refreshToken);
 

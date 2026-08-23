@@ -27,6 +27,7 @@ function usableToken(overrides: Partial<Parameters<typeof RefreshToken.reconstit
     tokenHash: hashOpaqueToken(RAW_TOKEN),
     expiresAt: new Date(Date.now() + 60_000),
     revokedAt: null,
+    rotatedAt: null,
     ...overrides,
   });
 }
@@ -41,8 +42,9 @@ function setup(overrides: { token?: RefreshToken | null; user?: User | null } = 
   const refreshTokens: jest.Mocked<RefreshTokenRepositoryPort> = {
     save: jest.fn().mockResolvedValue(undefined),
     findByHash: jest.fn().mockResolvedValue(overrides.token === undefined ? usableToken() : overrides.token),
-    revokeById: jest.fn().mockResolvedValue(undefined),
+    markRotated: jest.fn().mockResolvedValue(undefined),
     revokeFamily: jest.fn().mockResolvedValue(undefined),
+    revokeAllForUser: jest.fn().mockResolvedValue(undefined),
   };
   const accessTokens: jest.Mocked<AccessTokenIssuerPort> = {
     issue: jest.fn().mockReturnValue({ token: 'jwt.access.token', expiresInSeconds: 900 }),
@@ -55,13 +57,13 @@ function setup(overrides: { token?: RefreshToken | null; user?: User | null } = 
 }
 
 describe('RefreshUseCase (TASK-008, CON-002, AC-019, MOD-02 R2)', () => {
-  it('rotates: revokes the presented token and issues a new one in the same family', async () => {
+  it('rotates: marks the presented token rotated and issues a new one in the same family', async () => {
     const { useCase, refreshTokens } = setup();
 
     const result = await useCase.execute(RAW_TOKEN);
 
     expect(result.accessToken).toBe('jwt.access.token');
-    expect(refreshTokens.revokeById).toHaveBeenCalledWith('t-1', expect.any(Date));
+    expect(refreshTokens.markRotated).toHaveBeenCalledWith('t-1', expect.any(Date));
     expect(refreshTokens.save).toHaveBeenCalledTimes(1);
     const saved = refreshTokens.save.mock.calls[0][0] as RefreshToken;
     expect(saved.familyId).toBe('f-1'); // same family — rotation, not a new session
@@ -73,14 +75,42 @@ describe('RefreshUseCase (TASK-008, CON-002, AC-019, MOD-02 R2)', () => {
     await expect(useCase.execute('never-issued')).rejects.toBeInstanceOf(TokenRevokedError);
   });
 
-  it('AC-019: a replayed (already-revoked) token → TOKEN_REVOKED AND revokes the whole family', async () => {
+  it('AC-019: a replayed token rotated long ago → TOKEN_REVOKED AND revokes the whole family', async () => {
     const { useCase, refreshTokens } = setup({
-      token: usableToken({ revokedAt: new Date('2026-01-01') }),
+      token: usableToken({ revokedAt: new Date('2026-01-01'), rotatedAt: new Date('2026-01-01') }),
     });
 
     await expect(useCase.execute(RAW_TOKEN)).rejects.toBeInstanceOf(TokenRevokedError);
     expect(refreshTokens.revokeFamily).toHaveBeenCalledWith('f-1', expect.any(Date));
     expect(refreshTokens.save).not.toHaveBeenCalled(); // no new token minted on replay
+  });
+
+  it('a token revoked WITHOUT rotation (password reset / family kill) is never graced, however recent', async () => {
+    const justNow = new Date();
+    const { useCase, refreshTokens } = setup({
+      // revokedAt is now, but rotatedAt is null — this is a security revocation, not a race.
+      token: usableToken({ revokedAt: justNow, rotatedAt: null }),
+    });
+
+    await expect(useCase.execute(RAW_TOKEN)).rejects.toBeInstanceOf(TokenRevokedError);
+    expect(refreshTokens.revokeFamily).toHaveBeenCalledWith('f-1', expect.any(Date));
+    expect(refreshTokens.save).not.toHaveBeenCalled();
+  });
+
+  it('a token rotated moments ago is a concurrent refresh, not a replay: it succeeds and the family survives', async () => {
+    // The web app's middleware refreshes on every navigation, so a link click plus its RSC
+    // prefetch present the same token in parallel. Killing the family there logged the owner out.
+    const { useCase, refreshTokens } = setup({
+      token: usableToken({ revokedAt: new Date(), rotatedAt: new Date() }),
+    });
+
+    const result = await useCase.execute(RAW_TOKEN);
+
+    expect(result.accessToken).toBe('jwt.access.token');
+    expect(refreshTokens.revokeFamily).not.toHaveBeenCalled();
+    expect(refreshTokens.save).toHaveBeenCalledTimes(1);
+    const saved = refreshTokens.save.mock.calls[0][0] as RefreshToken;
+    expect(saved.familyId).toBe('f-1');
   });
 
   it('an expired (but not revoked) token → TOKEN_REVOKED, without nuking the family', async () => {

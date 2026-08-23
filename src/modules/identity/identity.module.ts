@@ -1,6 +1,8 @@
 import { Global, MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { getRepositoryToken, TypeOrmModule } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type { AppEnv } from '../../platform/config/env.validation';
@@ -44,6 +46,7 @@ import { TypeOrmRefreshTokenRepository } from './infrastructure/typeorm-refresh-
 import { TypeOrmUserRepository } from './infrastructure/typeorm-user.repository';
 import { AuthController } from './presentation/auth.controller';
 import { AuthMiddleware } from './presentation/auth.middleware';
+import { AuthenticatedGuard } from './presentation/authenticated.guard';
 import { MeController } from './presentation/me.controller';
 import { MembersController } from './presentation/members.controller';
 
@@ -78,9 +81,39 @@ import { MembersController } from './presentation/members.controller';
     TenantModule,
     AuditModule,
     EventsModule,
+    // Rate-limit buckets for the unauthenticated `/auth/*` surface. Configured HERE, not in
+    // `AppModule`, because this module owns `AuthController` and therefore its `ThrottlerGuard`:
+    // the 29 e2e suites assemble their own trimmed-down app modules that import `IdentityModule`
+    // without `AppModule`, so configuring it upstream left `THROTTLER:MODULE_OPTIONS`
+    // unresolvable and broke every one of them. Keeping the guard and its options in one module
+    // means anything that can serve `/auth/*` is necessarily configured to throttle it.
+    //
+    // The guard is deliberately NOT an `APP_GUARD`: the throttled surface is the pre-session one,
+    // where an anonymous caller can burn argon2 verifications or trigger token minting without
+    // limit. Authenticated, project-scoped traffic is already bounded by membership.
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<AppEnv, true>) => ({
+        throttlers: [
+          { name: 'auth-burst', ttl: 60_000, limit: 10 },
+          { name: 'auth-sustained', ttl: 900_000, limit: 40 },
+        ],
+        // Off under NODE_ENV=test. The e2e suites drive dozens of genuine logins (18 in
+        // `membership.e2e-spec`, 13 in `auth.e2e-spec`) from one loopback address, so a
+        // production-grade per-IP limit would 429 them and fail tests for reasons unrelated to
+        // what they assert. Follow-up worth carding: a dedicated e2e that enables the limiter
+        // and asserts the 429 — with this skip, nothing currently exercises it end to end.
+        skipIf: () => config.get('NODE_ENV', { infer: true }) === 'test',
+      }),
+    }),
   ],
   controllers: [AuthController, MeController, MembersController],
   providers: [
+    // Global authentication (`security: [bearerAuth]` is the contract's document-level default).
+    // Registered here rather than in TenantModule because auth is MOD-02's concern; it composes
+    // with TenantModule's `ProjectScopeGuard` in any order, since `AuthMiddleware` — middleware,
+    // so always ahead of every guard — is what actually populates `request.user`.
+    { provide: APP_GUARD, useClass: AuthenticatedGuard },
     LoginUseCase,
     RefreshUseCase,
     RequestResetUseCase,
