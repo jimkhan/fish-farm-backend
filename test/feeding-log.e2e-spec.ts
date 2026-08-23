@@ -4,7 +4,6 @@ import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { join } from 'path';
 import { validateEnv } from '../src/platform/config/env.validation';
 import { buildDataSourceOptions } from '../src/platform/persistence/data-source.options';
@@ -36,7 +35,7 @@ import { DeviceTokenPersistenceModel } from '../src/modules/notifications/infras
 import { NotificationsModule } from '../src/modules/notifications/notifications.module';
 import { FeedingLogPersistenceModel } from '../src/modules/feed/infrastructure/persistence/feeding-log.persistence-model';
 import { FeedModule } from '../src/modules/feed/feed.module';
-import { startTestPostgres } from './support/postgres-test-container';
+import { startTestPostgres, type DisposablePostgres } from './support/postgres-test-container';
 
 /**
  * Feeding log e2e (TASK-022, CON-018, F5/F6, AC-074/075/077) — full MOD-02+MOD-03+MOD-04+MOD-05+
@@ -74,7 +73,7 @@ const OUTSIDER_EMAIL = 'feeding-outsider@example.com';
 const OUTSIDER_PASSWORD = 'outsider correct horse battery staple';
 
 describe('Feeding log e2e (TASK-022, CON-018, AC-074/075/077)', () => {
-  let container: StartedPostgreSqlContainer;
+  let container: DisposablePostgres;
   let dataSource: DataSource;
   let app: INestApplication;
   let accessTokenFor: (email: string, password: string) => Promise<string>;

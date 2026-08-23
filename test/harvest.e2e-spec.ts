@@ -4,7 +4,6 @@ import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { join } from 'path';
 import { validateEnv } from '../src/platform/config/env.validation';
 import { buildDataSourceOptions } from '../src/platform/persistence/data-source.options';
@@ -32,7 +31,7 @@ import { TreatmentPersistenceModel } from '../src/modules/health/infrastructure/
 import { MortalityHealthModule } from '../src/modules/health/health.module';
 import { HarvestPersistenceModel } from '../src/modules/harvest/infrastructure/persistence/harvest.persistence-model';
 import { HarvestModule } from '../src/modules/harvest/harvest.module';
-import { startTestPostgres } from './support/postgres-test-container';
+import { startTestPostgres, type DisposablePostgres } from './support/postgres-test-container';
 
 /**
  * Harvest e2e (TASK-031, CON-021, F7, AC-102/103/106, R7/R8/R9) — full MOD-02+MOD-03+MOD-04+
@@ -68,7 +67,7 @@ const OUTSIDER_EMAIL = 'harvest-outsider@example.com';
 const OUTSIDER_PASSWORD = 'outsider correct horse battery staple';
 
 describe('Harvest e2e (TASK-031, CON-021, AC-101/102/103/106)', () => {
-  let container: StartedPostgreSqlContainer;
+  let container: DisposablePostgres;
   let dataSource: DataSource;
   let app: INestApplication;
   let accessTokenFor: (email: string, password: string) => Promise<string>;

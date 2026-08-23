@@ -15,7 +15,6 @@ import {
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { join } from 'path';
 import { buildDataSourceOptions } from '../src/platform/persistence/data-source.options';
 import { ErrorsModule } from '../src/shared-kernel/errors/errors.module';
@@ -28,7 +27,7 @@ import { ScopedRepository } from '../src/shared-kernel/tenant/scoped-repository'
 import { TenantContext } from '../src/shared-kernel/tenant/tenant-context';
 import { TenantModule } from '../src/shared-kernel/tenant/tenant.module';
 import { FixtureWidgetPersistenceModel } from './fixtures/persistence/entities/fixture-widget.persistence-model';
-import { startTestPostgres } from './support/postgres-test-container';
+import { startTestPostgres, type DisposablePostgres } from './support/postgres-test-container';
 
 /**
  * The negative isolation test (TASK-004, AC-003/004/005/014, NFR-011) against a real Postgres.
@@ -122,7 +121,7 @@ class IsolationTestAppModule implements NestModule {
 }
 
 describe('Tenant isolation e2e (TASK-004, NFR-011)', () => {
-  let container: StartedPostgreSqlContainer;
+  let container: DisposablePostgres;
   let app: INestApplication;
 
   beforeAll(async () => {

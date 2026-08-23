@@ -5,6 +5,7 @@ import { ConfigModule } from './platform/config/config.module';
 import { EventsModule } from './platform/events/events.module';
 import { HealthModule } from './platform/health/health.module';
 import { PersistenceModule } from './platform/persistence/persistence.module';
+import { TransactionModule } from './platform/persistence/transaction.module';
 import { AuditModule } from './shared-kernel/audit/audit.module';
 import { ErrorsModule } from './shared-kernel/errors/errors.module';
 import { TenantModule } from './shared-kernel/tenant/tenant.module';
@@ -46,6 +47,7 @@ import { WaterModule } from './modules/water/water.module';
   imports: [
     ConfigModule,
     PersistenceModule,
+    TransactionModule,
     HealthModule,
     EventsModule,
     ErrorsModule,
@@ -53,6 +55,8 @@ import { WaterModule } from './modules/water/water.module';
     AuditModule,
     CalendarModule,
     ScheduleModule.forRoot(),
+    // Rate limiting for `/auth/*` is configured inside `IdentityModule`, which owns
+    // `AuthController` — see the note there on why it can't live here.
     IdentityModule,
     ProjectsModule,
     PondsModule,

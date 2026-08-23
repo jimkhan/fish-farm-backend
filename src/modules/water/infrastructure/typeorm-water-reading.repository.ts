@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Between } from 'typeorm';
+import { halfOpenRange } from '../../../platform/persistence/half-open-range';
 import { ScopedRepository } from '../../../shared-kernel/tenant/scoped-repository';
 import { WaterReading, WaterParameter } from '../domain/water-reading.entity';
 import { WaterReadingRepositoryPort } from '../application/ports/water-reading-repository.port';
@@ -24,13 +24,13 @@ export class TypeOrmWaterReadingRepository implements WaterReadingRepositoryPort
     const models = await this.scoped.find({
       pondId,
       parameter,
-      readAt: Between(fromInclusive, toExclusive),
+      readAt: halfOpenRange(fromInclusive, toExclusive),
     });
     return models.map(toDomain);
   }
 
   async findForProjectBetween(fromInclusive: Date, toExclusive: Date): Promise<WaterReading[]> {
-    const models = await this.scoped.find({ readAt: Between(fromInclusive, toExclusive) });
+    const models = await this.scoped.find({ readAt: halfOpenRange(fromInclusive, toExclusive) });
     return models.map(toDomain);
   }
 

@@ -3,7 +3,6 @@ import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { join } from 'path';
 import { validateEnv } from '../src/platform/config/env.validation';
 import { buildDataSourceOptions } from '../src/platform/persistence/data-source.options';
@@ -47,7 +46,7 @@ import { TaskLogPersistenceModel } from '../src/modules/tasks/infrastructure/per
 import { TasksModule } from '../src/modules/tasks/tasks.module';
 import { FinanceModule } from '../src/modules/finance/finance.module';
 import { ReportingModule } from '../src/modules/reporting/reporting.module';
-import { startTestPostgres } from './support/postgres-test-container';
+import { startTestPostgres, type DisposablePostgres } from './support/postgres-test-container';
 
 /**
  * Daily summary e2e (TASK-037, CON-042, F3/R5, AC-122/124/125) — full MOD-02+MOD-03+MOD-04+
@@ -95,7 +94,7 @@ const OUTSIDER_EMAIL = 'reporting-outsider@example.com';
 const OUTSIDER_PASSWORD = 'outsider correct horse battery staple';
 
 describe('Daily summary e2e (TASK-037, CON-042, AC-122/124/125)', () => {
-  let container: StartedPostgreSqlContainer;
+  let container: DisposablePostgres;
   let dataSource: DataSource;
   let app: INestApplication;
   let accessTokenFor: (email: string, password: string) => Promise<string>;

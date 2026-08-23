@@ -4,7 +4,6 @@ import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { join } from 'path';
 import type { WaterEmergencyRaised } from '@fish-farm/shared';
 import { validateEnv } from '../src/platform/config/env.validation';
@@ -36,7 +35,7 @@ import { NotificationsModule } from '../src/modules/notifications/notifications.
 import { SlaEscalationScheduler } from '../src/modules/notifications/application/sla-escalation.scheduler';
 import { ProjectPersistenceModel } from '../src/modules/projects/infrastructure/persistence/project.persistence-model';
 import { ProjectsModule } from '../src/modules/projects/projects.module';
-import { startTestPostgres } from './support/postgres-test-container';
+import { startTestPostgres, type DisposablePostgres } from './support/postgres-test-container';
 
 /**
  * Critical delivery retry/fallback + SLA escalation e2e (TASK-017, CON-039, AC-052/054) — full
@@ -83,7 +82,7 @@ const OWNER_EMAIL = 'sla-owner@example.com';
 const OWNER_PASSWORD = 'owner correct horse battery staple';
 
 describe('Critical delivery retry/fallback + SLA escalation e2e (TASK-017, CON-039, AC-052/054)', () => {
-  let container: StartedPostgreSqlContainer;
+  let container: DisposablePostgres;
   let dataSource: DataSource;
   let app: INestApplication;
   let events: DomainEventBus;

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Between } from 'typeorm';
+import { halfOpenRange } from '../../../platform/persistence/half-open-range';
 import { ScopedRepository } from '../../../shared-kernel/tenant/scoped-repository';
 import { Mortality } from '../domain/mortality.entity';
 import { MortalityRepositoryPort } from '../application/ports/mortality-repository.port';
@@ -22,13 +22,15 @@ export class TypeOrmMortalityRepository implements MortalityRepositoryPort {
   ): Promise<Mortality[]> {
     const models = await this.scoped.find({
       batchId,
-      occurredAt: Between(fromInclusive, toExclusive),
+      occurredAt: halfOpenRange(fromInclusive, toExclusive),
     });
     return models.map(toDomain);
   }
 
   async findForProjectBetween(fromInclusive: Date, toExclusive: Date): Promise<Mortality[]> {
-    const models = await this.scoped.find({ occurredAt: Between(fromInclusive, toExclusive) });
+    const models = await this.scoped.find({
+      occurredAt: halfOpenRange(fromInclusive, toExclusive),
+    });
     return models.map(toDomain);
   }
 

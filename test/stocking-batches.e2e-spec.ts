@@ -4,7 +4,6 @@ import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { join } from 'path';
 import type { HarvestRecorded, MortalityRecorded, SamplingRecorded } from '@fish-farm/shared';
 import { validateEnv } from '../src/platform/config/env.validation';
@@ -29,7 +28,7 @@ import { StockingPersistenceModel } from '../src/modules/ponds/infrastructure/pe
 import { PondsModule } from '../src/modules/ponds/ponds.module';
 import { ProjectPersistenceModel } from '../src/modules/projects/infrastructure/persistence/project.persistence-model';
 import { ProjectsModule } from '../src/modules/projects/projects.module';
-import { startTestPostgres } from './support/postgres-test-container';
+import { startTestPostgres, type DisposablePostgres } from './support/postgres-test-container';
 
 /**
  * Stocking/Batch/Biomass e2e (TASK-019, CON-015/016/017/043, AC-062…067/070) — full MOD-02+
@@ -63,7 +62,7 @@ const OUTSIDER_EMAIL = 'stocking-outsider@example.com';
 const OUTSIDER_PASSWORD = 'outsider correct horse battery staple';
 
 describe('Stocking/Batch/Biomass e2e (TASK-019, CON-015/016/017/043, AC-062…067/070)', () => {
-  let container: StartedPostgreSqlContainer;
+  let container: DisposablePostgres;
   let dataSource: DataSource;
   let app: INestApplication;
   let events: DomainEventBus;

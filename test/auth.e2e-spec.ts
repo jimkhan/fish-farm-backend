@@ -3,7 +3,6 @@ import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { join } from 'path';
 import { validateEnv } from '../src/platform/config/env.validation';
 import { buildDataSourceOptions } from '../src/platform/persistence/data-source.options';
@@ -17,7 +16,7 @@ import { ProjectMembershipPersistenceModel } from '../src/modules/identity/infra
 import { RefreshTokenPersistenceModel } from '../src/modules/identity/infrastructure/persistence/refresh-token.persistence-model';
 import { UserPersistenceModel } from '../src/modules/identity/infrastructure/persistence/user.persistence-model';
 import { IdentityModule } from '../src/modules/identity/identity.module';
-import { startTestPostgres } from './support/postgres-test-container';
+import { startTestPostgres, type DisposablePostgres } from './support/postgres-test-container';
 import { createHash } from 'node:crypto';
 
 /**
@@ -75,7 +74,7 @@ let DEACTIVATED_USER_ID: string;
 let RESET_SUBJECT_USER_ID: string;
 
 describe('Auth e2e (TASK-008, CON-001/CON-002, AC-015…019, AC-028)', () => {
-  let container: StartedPostgreSqlContainer;
+  let container: DisposablePostgres;
   let dataSource: DataSource;
   let app: INestApplication;
 
@@ -222,6 +221,18 @@ describe('Auth e2e (TASK-008, CON-001/CON-002, AC-015…019, AC-028)', () => {
   });
 
   describe('AC-019: POST /auth/refresh rotation and replay detection', () => {
+    /**
+     * Ages every rotation past the grace window, so a subsequent reuse is a genuine replay
+     * rather than a concurrent refresh. Backdating the real column beats faking the clock:
+     * the use-case reads `rotated_at` from the row, so this exercises the true code path.
+     */
+    async function ageRotationsBeyondGraceWindow(): Promise<void> {
+      await dataSource.query(
+        `UPDATE "refresh_token" SET "rotated_at" = "rotated_at" - interval '1 minute'
+         WHERE "rotated_at" IS NOT NULL`,
+      );
+    }
+
     it('rotation: exchanges a refresh token for a new pair, and the old one stops working', async () => {
       const login = await request(app.getHttpServer())
         .post('/auth/login')
@@ -235,7 +246,8 @@ describe('Auth e2e (TASK-008, CON-001/CON-002, AC-015…019, AC-028)', () => {
         .expect(200);
       expect(rotated.body.refreshToken).not.toBe(firstRefreshToken);
 
-      // the now-rotated (revoked) token no longer works
+      // Once past the concurrent-refresh window, the rotated token no longer works.
+      await ageRotationsBeyondGraceWindow();
       const reuseAttempt = await request(app.getHttpServer())
         .post('/auth/refresh')
         .send({ refreshToken: firstRefreshToken })
@@ -243,7 +255,7 @@ describe('Auth e2e (TASK-008, CON-001/CON-002, AC-015…019, AC-028)', () => {
       expect(reuseAttempt.body.code).toBe('TOKEN_REVOKED');
     });
 
-    it('AC-019: replaying a rotated token revokes the whole family — even the new token stops working', async () => {
+    it('AC-019 (amended): replaying a rotated token after the grace window revokes the whole family — even the new token stops working', async () => {
       const login = await request(app.getHttpServer())
         .post('/auth/login')
         .send({ email: ACTIVE_EMAIL, password: ACTIVE_PASSWORD })
@@ -256,7 +268,8 @@ describe('Auth e2e (TASK-008, CON-001/CON-002, AC-015…019, AC-028)', () => {
         .expect(200);
       const rotatedToken = rotated.body.refreshToken;
 
-      // replay the original (already-rotated) token — triggers full-family revocation
+      // Replay the original well after it was superseded — real theft, not a parallel request.
+      await ageRotationsBeyondGraceWindow();
       await request(app.getHttpServer())
         .post('/auth/refresh')
         .send({ refreshToken: original })
@@ -268,6 +281,74 @@ describe('Auth e2e (TASK-008, CON-001/CON-002, AC-015…019, AC-028)', () => {
         .send({ refreshToken: rotatedToken })
         .expect(401);
       expect(afterReplay.body.code).toBe('TOKEN_REVOKED');
+    });
+
+    /**
+     * AC-019's amendment, stated as a test. An immediate reuse cannot be distinguished from a
+     * legitimate concurrent refresh — the web app's Next.js middleware refreshes on navigation,
+     * so one link click issues the navigation and an RSC prefetch in parallel, both carrying the
+     * same cookie. Revoking the family there logged the owner out mid-session with a valid
+     * 30-day token; two open tabs reproduced it every time.
+     */
+    it('AC-019 (amended): an immediate reuse is treated as a concurrent refresh — it succeeds and the family survives', async () => {
+      const login = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email: ACTIVE_EMAIL, password: ACTIVE_PASSWORD })
+        .expect(200);
+      const original = login.body.refreshToken;
+
+      const first = await request(app.getHttpServer())
+        .post('/auth/refresh')
+        .send({ refreshToken: original })
+        .expect(200);
+
+      // The parallel request, still holding the pre-rotation token.
+      const second = await request(app.getHttpServer())
+        .post('/auth/refresh')
+        .send({ refreshToken: original })
+        .expect(200);
+
+      // Both callers hold usable, distinct tokens, and the family is intact.
+      expect(second.body.refreshToken).not.toBe(first.body.refreshToken);
+      await request(app.getHttpServer())
+        .post('/auth/refresh')
+        .send({ refreshToken: first.body.refreshToken })
+        .expect(200);
+    });
+
+    /**
+     * The grace window must never resurrect a session a password reset just ended. Only tokens
+     * carrying `rotated_at` are eligible for leeway; a reset sets `revoked_at` alone, so there is
+     * nothing to grace even microseconds later.
+     *
+     * Resets to the SAME password on purpose, so `ACTIVE_EMAIL`'s credentials stay valid for
+     * every other test in this file — the point here is the token revocation, not the new secret.
+     */
+    it('a token revoked by a password reset is never graced, however recent', async () => {
+      const login = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email: ACTIVE_EMAIL, password: ACTIVE_PASSWORD })
+        .expect(200);
+      const refreshToken = login.body.refreshToken;
+
+      const rawToken = 'e2e-reset-revokes-sessions';
+      await dataSource.getRepository(PasswordResetTokenPersistenceModel).save({
+        userId: ACTIVE_USER_ID,
+        tokenHash: createHash('sha256').update(rawToken).digest('hex'),
+        expiresAt: new Date(Date.now() + 60_000),
+        usedAt: null,
+      });
+
+      await request(app.getHttpServer())
+        .post('/auth/password-reset/confirm')
+        .send({ token: rawToken, newPassword: ACTIVE_PASSWORD })
+        .expect(204);
+
+      const afterReset = await request(app.getHttpServer())
+        .post('/auth/refresh')
+        .send({ refreshToken })
+        .expect(401);
+      expect(afterReset.body.code).toBe('TOKEN_REVOKED');
     });
 
     it('an unknown refresh token is rejected', async () => {

@@ -3,7 +3,6 @@ import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { join } from 'path';
 import { validateEnv } from '../src/platform/config/env.validation';
 import { buildDataSourceOptions } from '../src/platform/persistence/data-source.options';
@@ -31,7 +30,7 @@ import { ProjectsModule } from '../src/modules/projects/projects.module';
 import { WaterReadingPersistenceModel } from '../src/modules/water/infrastructure/persistence/water-reading.persistence-model';
 import { WaterThresholdPersistenceModel } from '../src/modules/water/infrastructure/persistence/water-threshold.persistence-model';
 import { WaterModule } from '../src/modules/water/water.module';
-import { startTestPostgres } from './support/postgres-test-container';
+import { startTestPostgres, type DisposablePostgres } from './support/postgres-test-container';
 
 /**
  * Water readings/thresholds e2e (TASK-023, CON-025/026/027/027a, AC-083/084/085/090/092/093) —
@@ -69,7 +68,7 @@ const OUTSIDER_EMAIL = 'water-outsider@example.com';
 const OUTSIDER_PASSWORD = 'outsider correct horse battery staple';
 
 describe('Water readings/thresholds e2e (TASK-023, CON-025/026/027/027a, AC-083/084/085/090/092/093)', () => {
-  let container: StartedPostgreSqlContainer;
+  let container: DisposablePostgres;
   let dataSource: DataSource;
   let app: INestApplication;
   let accessTokenFor: (email: string, password: string) => Promise<string>;

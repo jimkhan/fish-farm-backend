@@ -11,7 +11,6 @@ import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { join } from 'path';
 import { createHash } from 'node:crypto';
 import { validateEnv } from '../src/platform/config/env.validation';
@@ -31,7 +30,7 @@ import { IdentityModule } from '../src/modules/identity/identity.module';
 import { rolesWithCapability } from '../src/modules/identity/domain/role-capability-matrix';
 import { Roles } from '../src/modules/identity/presentation/roles.decorator';
 import { RolesGuard } from '../src/modules/identity/presentation/roles.guard';
-import { startTestPostgres } from './support/postgres-test-container';
+import { startTestPostgres, type DisposablePostgres } from './support/postgres-test-container';
 
 /**
  * Membership/RBAC e2e (TASK-010, CON-005/010/011/012, AC-021…027, AC-029) on a real Postgres —
@@ -98,7 +97,7 @@ const PROJECT_3 = '33333333-3333-4333-8333-333333333333';
 const PROJECT_PROBE = '44444444-4444-4444-8444-444444444444';
 
 describe('Membership/RBAC e2e (TASK-010, CON-005/010/011/012, AC-021…027, AC-029)', () => {
-  let container: StartedPostgreSqlContainer;
+  let container: DisposablePostgres;
   let dataSource: DataSource;
   let app: INestApplication;
   let accessTokenFor: (email: string, password: string) => Promise<string>;

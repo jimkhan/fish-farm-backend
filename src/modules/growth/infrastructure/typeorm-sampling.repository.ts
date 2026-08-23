@@ -10,14 +10,14 @@ export class TypeOrmSamplingRepository implements SamplingRepositoryPort {
   constructor(private readonly scoped: ScopedRepository<SamplingPersistenceModel>) {}
 
   async findForBatch(batchId: string): Promise<Sampling[]> {
-    const models = await this.scoped.find({ batchId });
-    return models
-      .map(toDomain)
-      .sort((a, b) => a.sampledOn.getTime() - b.sampledOn.getTime());
+    // Ordered in SQL, not in memory — growth curves depend on chronological order, and sorting
+    // the whole batch's history client-side scales with the season, not with what's needed.
+    const models = await this.scoped.find({ batchId }, { order: { sampledOn: 'ASC' } });
+    return models.map(toDomain);
   }
 
   async findByClientMutationId(clientMutationId: string): Promise<Sampling | null> {
-    const [model] = await this.scoped.find({ clientMutationId });
+    const model = await this.scoped.findOne({ clientMutationId });
     return model ? toDomain(model) : null;
   }
 

@@ -15,7 +15,6 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
 import { Test, TestingModuleBuilder } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { join } from 'path';
 import { buildDataSourceOptions } from '../src/platform/persistence/data-source.options';
 import { TransactionContext } from '../src/platform/persistence/transaction-context';
@@ -31,7 +30,7 @@ import { ScopedRepository } from '../src/shared-kernel/tenant/scoped-repository'
 import { TenantContext } from '../src/shared-kernel/tenant/tenant-context';
 import { TenantModule } from '../src/shared-kernel/tenant/tenant.module';
 import { FixtureWidgetPersistenceModel } from './fixtures/persistence/entities/fixture-widget.persistence-model';
-import { startTestPostgres } from './support/postgres-test-container';
+import { startTestPostgres, type DisposablePostgres } from './support/postgres-test-container';
 
 /**
  * Integration test for the in-transaction audit trail (TASK-005, AC-006/007, NFR-012) on a
@@ -125,7 +124,7 @@ function testModule(): TestingModuleBuilder {
 }
 
 describe('Audit trail e2e (TASK-005, NFR-012)', () => {
-  let container: StartedPostgreSqlContainer;
+  let container: DisposablePostgres;
   let app: INestApplication;
 
   beforeAll(async () => {

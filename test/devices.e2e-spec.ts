@@ -3,7 +3,6 @@ import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { join } from 'path';
 import { validateEnv } from '../src/platform/config/env.validation';
 import { buildDataSourceOptions } from '../src/platform/persistence/data-source.options';
@@ -34,7 +33,7 @@ import { InventoryTxnPersistenceModel } from '../src/modules/inventory/infrastru
 import { InventoryModule } from '../src/modules/inventory/inventory.module';
 import { ProjectPersistenceModel } from '../src/modules/projects/infrastructure/persistence/project.persistence-model';
 import { ProjectsModule } from '../src/modules/projects/projects.module';
-import { startTestPostgres } from './support/postgres-test-container';
+import { startTestPostgres, type DisposablePostgres } from './support/postgres-test-container';
 
 /**
  * Device registration + dispatch e2e (TASK-016, CON-045, AC-053/057) — full MOD-02+MOD-03+MOD-05+
@@ -78,7 +77,7 @@ const OWNER_EMAIL = 'devices-owner@example.com';
 const OWNER_PASSWORD = 'owner correct horse battery staple';
 
 describe('Device registration + dispatch e2e (TASK-016, CON-045, AC-053/057)', () => {
-  let container: StartedPostgreSqlContainer;
+  let container: DisposablePostgres;
   let dataSource: DataSource;
   let app: INestApplication;
   let fakeChannel: FakeNotificationChannel;

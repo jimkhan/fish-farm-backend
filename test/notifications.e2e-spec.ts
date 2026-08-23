@@ -4,7 +4,6 @@ import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { join } from 'path';
 import type { WaterEmergencyRaised, WaterThresholdBreached } from '@fish-farm/shared';
 import { validateEnv } from '../src/platform/config/env.validation';
@@ -26,7 +25,7 @@ import { AlertPersistenceModel } from '../src/modules/notifications/infrastructu
 import { NotificationsModule } from '../src/modules/notifications/notifications.module';
 import { ProjectPersistenceModel } from '../src/modules/projects/infrastructure/persistence/project.persistence-model';
 import { ProjectsModule } from '../src/modules/projects/projects.module';
-import { startTestPostgres } from './support/postgres-test-container';
+import { startTestPostgres, type DisposablePostgres } from './support/postgres-test-container';
 
 /**
  * Alert engine e2e (TASK-015, CON-038/039, AC-050/051/055/056/058/059) — full MOD-02+MOD-03+
@@ -64,7 +63,7 @@ const OUTSIDER_EMAIL = 'alerts-outsider@example.com';
 const OUTSIDER_PASSWORD = 'outsider correct horse battery staple';
 
 describe('Alerts e2e (TASK-015, CON-038/039, AC-050/051/055/056/058/059)', () => {
-  let container: StartedPostgreSqlContainer;
+  let container: DisposablePostgres;
   let dataSource: DataSource;
   let app: INestApplication;
   let events: DomainEventBus;

@@ -89,4 +89,86 @@ describe('DomainEventBus (TASK-006, FT-007, ADR-015)', () => {
 
     await expect(bus.publish(event())).resolves.toBeUndefined();
   });
+
+  describe('savepoint isolation inside the publisher transaction', () => {
+    /** A TransactionContext exposing a fake QueryRunner that records the SQL it is asked to run. */
+    function transactionalContext() {
+      const sql: string[] = [];
+      const queryRunner = {
+        isTransactionActive: true,
+        query: jest.fn(async (statement: string) => {
+          sql.push(statement);
+        }),
+      };
+      const transactions = { manager: { queryRunner } } as never;
+      return { transactions, sql };
+    }
+
+    it('rolls a failed attempt back to its savepoint before retrying, so a partial write is not re-applied', async () => {
+      const { transactions, sql } = transactionalContext();
+      const bus = new DomainEventBus(transactions);
+      const flaky = jest
+        .fn()
+        .mockRejectedValueOnce(new Error('failed after writing a row'))
+        .mockResolvedValueOnce(undefined);
+      bus.subscribe('WidgetPlanted', flaky);
+
+      await bus.publish(event());
+
+      expect(flaky).toHaveBeenCalledTimes(2);
+      expect(sql).toEqual([
+        'SAVEPOINT ffms_evt_1',
+        'ROLLBACK TO SAVEPOINT ffms_evt_1', // attempt 1's partial write undone...
+        'SAVEPOINT ffms_evt_2',
+        'RELEASE SAVEPOINT ffms_evt_2', // ...before attempt 2 runs and succeeds
+      ]);
+    });
+
+    it('leaves nothing behind when a handler is dropped after MAX_ATTEMPTS', async () => {
+      const { transactions, sql } = transactionalContext();
+      const bus = new DomainEventBus(transactions);
+      bus.subscribe('WidgetPlanted', jest.fn().mockRejectedValue(new Error('down')));
+
+      await expect(bus.publish(event())).resolves.toBeUndefined();
+
+      expect(sql.filter((s) => s.startsWith('ROLLBACK TO'))).toHaveLength(3);
+      expect(sql.filter((s) => s.startsWith('RELEASE'))).toHaveLength(0);
+    });
+
+    it('logs the full event payload when a reaction is permanently dropped', async () => {
+      const { transactions } = transactionalContext();
+      const bus = new DomainEventBus(transactions);
+      bus.subscribe('WidgetPlanted', jest.fn().mockRejectedValue(new Error('down')));
+
+      await bus.publish(event());
+
+      // The publisher still commits, so this log is the only remaining record of the reaction.
+      expect(Logger.prototype.error).toHaveBeenCalledWith(
+        expect.stringContaining('"projectId":"p-1"'),
+        expect.any(String),
+      );
+    });
+
+    it('takes no savepoint when no transaction is active', async () => {
+      const sql: string[] = [];
+      const transactions = {
+        manager: {
+          queryRunner: {
+            isTransactionActive: false,
+            query: jest.fn(async (s: string) => {
+              sql.push(s);
+            }),
+          },
+        },
+      } as never;
+      const bus = new DomainEventBus(transactions);
+      const handler = jest.fn();
+      bus.subscribe('WidgetPlanted', handler);
+
+      await bus.publish(event());
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(sql).toEqual([]);
+    });
+  });
 });

@@ -1,6 +1,7 @@
 import { Controller, Get, HttpCode, HttpStatus } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import type { DataSource } from 'typeorm';
+import { Public } from '../../shared-kernel/auth/public.decorator';
 
 /** Shape of the `Health` schema in contracts/openapi.yaml (CON-047). */
 export interface HealthResponse {
@@ -16,6 +17,7 @@ export interface HealthResponse {
  * reports `degraded` (still HTTP 200 — the process itself is alive) if it fails, without ever
  * throwing back to the caller.
  */
+@Public()
 @Controller('health')
 export class HealthController {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}

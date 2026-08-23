@@ -3,7 +3,6 @@ import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { join } from 'path';
 import { validateEnv } from '../src/platform/config/env.validation';
 import { buildDataSourceOptions } from '../src/platform/persistence/data-source.options';
@@ -25,7 +24,7 @@ import { CameraPersistenceModel } from '../src/modules/monitoring/infrastructure
 import { WeatherSnapshotPersistenceModel } from '../src/modules/monitoring/infrastructure/persistence/weather-snapshot.persistence-model';
 import { MonitoringModule } from '../src/modules/monitoring/monitoring.module';
 import { WEATHER_STALENESS_THRESHOLD_MS } from '../src/modules/monitoring/domain/staleness.service';
-import { startTestPostgres } from './support/postgres-test-container';
+import { startTestPostgres, type DisposablePostgres } from './support/postgres-test-container';
 
 /**
  * Camera + weather e2e (TASK-035/036, CON-036/037, AC-118/119/120/121/124) — full
@@ -63,7 +62,7 @@ const OUTSIDER_EMAIL = 'monitoring-outsider@example.com';
 const OUTSIDER_PASSWORD = 'outsider correct horse battery staple';
 
 describe('Camera + Weather e2e (TASK-035/036, CON-036/037, AC-118/119/120/121/124)', () => {
-  let container: StartedPostgreSqlContainer;
+  let container: DisposablePostgres;
   let dataSource: DataSource;
   let app: INestApplication;
   let accessTokenFor: (email: string, password: string) => Promise<string>;

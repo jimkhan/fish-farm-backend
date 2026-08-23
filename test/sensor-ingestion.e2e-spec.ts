@@ -4,7 +4,6 @@ import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { join } from 'path';
 import { validateEnv } from '../src/platform/config/env.validation';
 import { buildDataSourceOptions } from '../src/platform/persistence/data-source.options';
@@ -34,7 +33,7 @@ import { WaterReadingPersistenceModel } from '../src/modules/water/infrastructur
 import { WaterThresholdPersistenceModel } from '../src/modules/water/infrastructure/persistence/water-threshold.persistence-model';
 import { PondActionPersistenceModel } from '../src/modules/water/infrastructure/persistence/pond-action.persistence-model';
 import { WaterModule } from '../src/modules/water/water.module';
-import { startTestPostgres } from './support/postgres-test-container';
+import { startTestPostgres, type DisposablePostgres } from './support/postgres-test-container';
 
 /**
  * Secured sensor ingestion e2e (TASK-027, CON-044, AC-089, R6) — device-key auth + wrong-project
@@ -69,7 +68,7 @@ function hashKey(raw: string): string {
 }
 
 describe('Sensor ingestion e2e (TASK-027, CON-044, AC-089)', () => {
-  let container: StartedPostgreSqlContainer;
+  let container: DisposablePostgres;
   let dataSource: DataSource;
   let app: INestApplication;
   let ownerToken: string;

@@ -3,7 +3,6 @@ import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { join } from 'path';
 import { validateEnv } from '../src/platform/config/env.validation';
 import { buildDataSourceOptions } from '../src/platform/persistence/data-source.options';
@@ -32,7 +31,7 @@ import { MissedTaskScheduler } from '../src/modules/tasks/application/missed-tas
 import { TaskLogPersistenceModel } from '../src/modules/tasks/infrastructure/persistence/task-log.persistence-model';
 import { TaskPersistenceModel } from '../src/modules/tasks/infrastructure/persistence/task.persistence-model';
 import { TasksModule } from '../src/modules/tasks/tasks.module';
-import { startTestPostgres } from './support/postgres-test-container';
+import { startTestPostgres, type DisposablePostgres } from './support/postgres-test-container';
 
 /**
  * Tasks e2e (TASK-041, CON-029/030/031, AC-134/135) — full MOD-02+MOD-03+MOD-04+MOD-09 stack on
@@ -70,7 +69,7 @@ const OUTSIDER_EMAIL = 'tasks-outsider@example.com';
 const OUTSIDER_PASSWORD = 'outsider correct horse battery staple';
 
 describe('Tasks e2e (TASK-041, CON-029/030/031, AC-134/135)', () => {
-  let container: StartedPostgreSqlContainer;
+  let container: DisposablePostgres;
   let dataSource: DataSource;
   let app: INestApplication;
   let scheduler: MissedTaskScheduler;

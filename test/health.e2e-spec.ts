@@ -1,12 +1,11 @@
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { startTestPostgres } from './support/postgres-test-container';
+import { startTestPostgres, type DisposablePostgres } from './support/postgres-test-container';
 
 describe('GET /health (AC-001, CON-047)', () => {
   let app: INestApplication;
-  let container: StartedPostgreSqlContainer;
+  let container: DisposablePostgres;
 
   beforeAll(async () => {
     const started = await startTestPostgres();

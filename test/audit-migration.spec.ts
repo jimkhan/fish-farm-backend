@@ -1,8 +1,7 @@
 import { join } from 'path';
 import { DataSource } from 'typeorm';
-import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { buildDataSourceOptions } from '../src/platform/persistence/data-source.options';
-import { startTestPostgres } from './support/postgres-test-container';
+import { startTestPostgres, type DisposablePostgres } from './support/postgres-test-container';
 
 /**
  * Reversibility of the real `audit_entry` migration (TASK-005 DoD, AC-011 pattern): `up()`
@@ -10,7 +9,7 @@ import { startTestPostgres } from './support/postgres-test-container';
  * prior state.
  */
 describe('CreateAuditEntry migration (TASK-005, AC-011)', () => {
-  let container: StartedPostgreSqlContainer;
+  let container: DisposablePostgres;
   let dataSource: DataSource;
 
   beforeAll(async () => {

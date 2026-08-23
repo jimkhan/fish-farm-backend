@@ -4,7 +4,6 @@ import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { join } from 'path';
 import { validateEnv } from '../src/platform/config/env.validation';
 import { buildDataSourceOptions } from '../src/platform/persistence/data-source.options';
@@ -44,7 +43,7 @@ import { WaterThresholdPersistenceModel } from '../src/modules/water/infrastruct
 import { WaterModule } from '../src/modules/water/water.module';
 import { FeedModule } from '../src/modules/feed/feed.module';
 import { FeedingReminderScheduler } from '../src/modules/feed/application/feeding-reminder.scheduler';
-import { startTestPostgres } from './support/postgres-test-container';
+import { startTestPostgres, type DisposablePostgres } from './support/postgres-test-container';
 
 /** A fake `NOTIFICATION_CHANNEL` (module doc's own testing note sanctions this — "FCM adapter (faked) delivery"). */
 class FakeNotificationChannel implements NotificationChannel {
@@ -94,7 +93,7 @@ const OUTSIDER_EMAIL = 'feed-outsider@example.com';
 const OUTSIDER_PASSWORD = 'outsider correct horse battery staple';
 
 describe('Feed plan e2e (TASK-021, CON-018a, AC-071/072/073/081)', () => {
-  let container: StartedPostgreSqlContainer;
+  let container: DisposablePostgres;
   let dataSource: DataSource;
   let app: INestApplication;
   let accessTokenFor: (email: string, password: string) => Promise<string>;

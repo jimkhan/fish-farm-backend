@@ -4,7 +4,6 @@ import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { join } from 'path';
 import { validateEnv } from '../src/platform/config/env.validation';
 import { buildDataSourceOptions } from '../src/platform/persistence/data-source.options';
@@ -50,7 +49,7 @@ import { TaskLogPersistenceModel } from '../src/modules/tasks/infrastructure/per
 import { TasksModule } from '../src/modules/tasks/tasks.module';
 import { SyncMutationPersistenceModel } from '../src/modules/sync/infrastructure/persistence/sync-mutation.persistence-model';
 import { SyncModule } from '../src/modules/sync/sync.module';
-import { startTestPostgres } from './support/postgres-test-container';
+import { startTestPostgres, type DisposablePostgres } from './support/postgres-test-container';
 
 /**
  * Sync e2e (TASK-040, CON-040, F3, AC-129/130/131/132/137/076/091) — full MOD-02+MOD-03+MOD-04+
@@ -95,7 +94,7 @@ const OUTSIDER_EMAIL = 'sync-outsider@example.com';
 const OUTSIDER_PASSWORD = 'outsider correct horse battery staple';
 
 describe('Sync e2e (TASK-040, CON-040, AC-129/130/131/132/137/076/091)', () => {
-  let container: StartedPostgreSqlContainer;
+  let container: DisposablePostgres;
   let dataSource: DataSource;
   let app: INestApplication;
   let accessTokenFor: (email: string, password: string) => Promise<string>;

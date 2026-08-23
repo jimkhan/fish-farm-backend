@@ -1,8 +1,7 @@
 import { join } from 'path';
 import { DataSource } from 'typeorm';
 import { buildDataSourceOptions } from '../src/platform/persistence/data-source.options';
-import { startTestPostgres } from './support/postgres-test-container';
-import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+import { startTestPostgres, type DisposablePostgres } from './support/postgres-test-container';
 
 describe('TypeORM persistence pipeline (AC-011, AC-012)', () => {
   describe('AC-012 — synchronize is always false', () => {
@@ -46,7 +45,7 @@ describe('TypeORM persistence pipeline (AC-011, AC-012)', () => {
   });
 
   describe('AC-011 — a migration is reversible', () => {
-    let container: StartedPostgreSqlContainer;
+    let container: DisposablePostgres;
     let dataSource: DataSource;
 
     beforeAll(async () => {

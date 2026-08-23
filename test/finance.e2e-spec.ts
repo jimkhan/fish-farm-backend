@@ -4,7 +4,6 @@ import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { join } from 'path';
 import type { StockingRecorded } from '@fish-farm/shared';
 import { validateEnv } from '../src/platform/config/env.validation';
@@ -36,7 +35,7 @@ import { HarvestPersistenceModel } from '../src/modules/harvest/infrastructure/p
 import { HarvestModule } from '../src/modules/harvest/harvest.module';
 import { FinancialTxnPersistenceModel } from '../src/modules/finance/infrastructure/persistence/financial-txn.persistence-model';
 import { FinanceModule } from '../src/modules/finance/finance.module';
-import { startTestPostgres } from './support/postgres-test-container';
+import { startTestPostgres, type DisposablePostgres } from './support/postgres-test-container';
 
 /**
  * Finance e2e (TASK-032, CON-032/033, F1/F4, AC-107/108/109/113/114/115/116/117) — full MOD-02+
@@ -77,7 +76,7 @@ const OUTSIDER_EMAIL = 'finance-outsider@example.com';
 const OUTSIDER_PASSWORD = 'outsider correct horse battery staple';
 
 describe('Finance e2e (TASK-032, CON-032/033, AC-107/108/109/113/114/115/116/117)', () => {
-  let container: StartedPostgreSqlContainer;
+  let container: DisposablePostgres;
   let dataSource: DataSource;
   let app: INestApplication;
   let events: DomainEventBus;

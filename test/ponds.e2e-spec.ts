@@ -3,7 +3,6 @@ import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { join } from 'path';
 import { validateEnv } from '../src/platform/config/env.validation';
 import { buildDataSourceOptions } from '../src/platform/persistence/data-source.options';
@@ -24,7 +23,7 @@ import { SpeciesPersistenceModel } from '../src/modules/ponds/infrastructure/per
 import { PondsModule } from '../src/modules/ponds/ponds.module';
 import { ProjectPersistenceModel } from '../src/modules/projects/infrastructure/persistence/project.persistence-model';
 import { ProjectsModule } from '../src/modules/projects/projects.module';
-import { startTestPostgres } from './support/postgres-test-container';
+import { startTestPostgres, type DisposablePostgres } from './support/postgres-test-container';
 
 /**
  * Ponds/species e2e (TASK-018, CON-013/014/048, AC-060/061/069, AC-032/068) — full MOD-02+
@@ -57,7 +56,7 @@ const OUTSIDER_EMAIL = 'ponds-outsider@example.com';
 const OUTSIDER_PASSWORD = 'outsider correct horse battery staple';
 
 describe('Ponds/Species e2e (TASK-018, CON-013/014/048, AC-060/061/069/032/068)', () => {
-  let container: StartedPostgreSqlContainer;
+  let container: DisposablePostgres;
   let dataSource: DataSource;
   let app: INestApplication;
   let accessTokenFor: (email: string, password: string) => Promise<string>;
@@ -139,9 +138,16 @@ describe('Ponds/Species e2e (TASK-018, CON-013/014/048, AC-060/061/069/032/068)'
 
   describe('CON-048: GET /species', () => {
     it('lists the seeded reference species', async () => {
-      const res = await request(app.getHttpServer()).get('/species').expect(200);
+      const res = await request(app.getHttpServer())
+        .get('/species')
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(200);
       const names = res.body.map((s: { name: string }) => s.name);
       expect(names).toEqual(expect.arrayContaining(['SPF Golda', 'Parse', 'Carp', 'Grass Carp']));
+    });
+
+    it('requires authentication — the contract puts it under the default bearerAuth', async () => {
+      await request(app.getHttpServer()).get('/species').expect(401);
     });
   });
 

@@ -4,7 +4,6 @@ import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { join } from 'path';
 import { validateEnv } from '../src/platform/config/env.validation';
 import { buildDataSourceOptions } from '../src/platform/persistence/data-source.options';
@@ -41,7 +40,7 @@ import { DeviceTokenPersistenceModel } from '../src/modules/notifications/infras
 import { NotificationsModule } from '../src/modules/notifications/notifications.module';
 import { FinancialTxnPersistenceModel } from '../src/modules/finance/infrastructure/persistence/financial-txn.persistence-model';
 import { FinanceModule } from '../src/modules/finance/finance.module';
-import { startTestPostgres } from './support/postgres-test-container';
+import { startTestPostgres, type DisposablePostgres } from './support/postgres-test-container';
 
 /**
  * Finance summary / portfolio ROI e2e (TASK-033, CON-034, F2/F3, AC-110/111/112) — full MOD-02+
@@ -81,7 +80,7 @@ const PARTNER_EMAIL = 'roi-partner@example.com';
 const PARTNER_PASSWORD = 'partner correct horse battery staple';
 
 describe('Finance summary / portfolio ROI e2e (TASK-033, CON-034, AC-110/111/112)', () => {
-  let container: StartedPostgreSqlContainer;
+  let container: DisposablePostgres;
   let dataSource: DataSource;
   let app: INestApplication;
   let accessTokenFor: (email: string, password: string) => Promise<string>;

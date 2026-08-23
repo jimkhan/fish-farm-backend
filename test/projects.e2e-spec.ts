@@ -3,7 +3,6 @@ import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { join } from 'path';
 import { validateEnv } from '../src/platform/config/env.validation';
 import { buildDataSourceOptions } from '../src/platform/persistence/data-source.options';
@@ -21,7 +20,7 @@ import { UserPersistenceModel } from '../src/modules/identity/infrastructure/per
 import { IdentityModule } from '../src/modules/identity/identity.module';
 import { ProjectPersistenceModel } from '../src/modules/projects/infrastructure/persistence/project.persistence-model';
 import { ProjectsModule } from '../src/modules/projects/projects.module';
-import { startTestPostgres } from './support/postgres-test-container';
+import { startTestPostgres, type DisposablePostgres } from './support/postgres-test-container';
 
 /**
  * Project CRUD e2e (TASK-011, CON-006/007/008/009, AC-030/031/033/036/040) on a real Postgres —
@@ -54,7 +53,7 @@ const PARTNER_EMAIL = 'projects-partner@example.com';
 const PARTNER_PASSWORD = 'partner correct horse battery staple';
 
 describe('Projects e2e (TASK-011, CON-006…009, AC-030/031/033/036/040)', () => {
-  let container: StartedPostgreSqlContainer;
+  let container: DisposablePostgres;
   let dataSource: DataSource;
   let app: INestApplication;
   let accessTokenFor: (email: string, password: string) => Promise<string>;

@@ -4,7 +4,6 @@ import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import type { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { join } from 'path';
 import type { WaterEmergencyRaised } from '@fish-farm/shared';
 import { validateEnv } from '../src/platform/config/env.validation';
@@ -34,7 +33,7 @@ import { PortfolioModule } from '../src/modules/projects/portfolio.module';
 import { ProjectsModule } from '../src/modules/projects/projects.module';
 import { FinancialTxnPersistenceModel } from '../src/modules/finance/infrastructure/persistence/financial-txn.persistence-model';
 import { FinanceModule } from '../src/modules/finance/finance.module';
-import { startTestPostgres } from './support/postgres-test-container';
+import { startTestPostgres, type DisposablePostgres } from './support/postgres-test-container';
 
 /**
  * Portfolio roll-up e2e (TASK-012, CON-035, AC-034/035, R5) — full MOD-02+MOD-03+MOD-04+MOD-09
@@ -73,7 +72,7 @@ const PARTNER_EMAIL = 'portfolio-partner@example.com';
 const PARTNER_PASSWORD = 'partner correct horse battery staple';
 
 describe('Portfolio e2e (TASK-012, CON-035, AC-034/035, R5)', () => {
-  let container: StartedPostgreSqlContainer;
+  let container: DisposablePostgres;
   let dataSource: DataSource;
   let app: INestApplication;
   let events: DomainEventBus;
