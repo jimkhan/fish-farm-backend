@@ -1,20 +1,35 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { aggregateForecastDays } from '../domain/aggregate-forecast-days';
+import type { WeatherForecastDay } from '../domain/weather-forecast-day';
 import { isExtremeHeat, isHeavyRain } from '../domain/weather-thresholds';
-import { RawWeatherReading, WeatherAdapterPort } from '../application/ports/weather-adapter.port';
+import { windDirFromDeg, windMsToKmh } from '../domain/wind.util';
+import {
+  RawWeatherReading,
+  WeatherAdapterPort,
+} from '../application/ports/weather-adapter.port';
 
-const OPENWEATHER_BASE_URL = 'https://api.openweathermap.org/data/2.5/weather';
+const OPENWEATHER_CURRENT_URL = 'https://api.openweathermap.org/data/2.5/weather';
+const OPENWEATHER_FORECAST_URL = 'https://api.openweathermap.org/data/2.5/forecast';
 
-interface OpenWeatherResponse {
-  main?: { temp?: number };
+interface OpenWeatherCurrentResponse {
+  main?: { temp?: number; humidity?: number; feels_like?: number };
   weather?: Array<{ id?: number; main?: string }>;
+  wind?: { speed?: number; deg?: number };
+  rain?: { '1h'?: number; '3h'?: number };
+}
+
+interface OpenWeatherForecastResponse {
+  list?: Array<{
+    dt?: number;
+    main?: { temp?: number; temp_min?: number; temp_max?: number };
+    weather?: Array<{ id?: number; main?: string }>;
+    pop?: number;
+  }>;
 }
 
 /**
- * OpenWeather Current Weather API (ADR-018). Never throws — a missing key, network failure, or
- * non-OK response all resolve to `null` (same graceful-degradation shape as `FcmAdapter.send()`),
- * so `RefreshWeatherScheduler` never needs its own try/catch. Uses global `fetch` (Node 18+),
- * matching this codebase's one existing external-HTTP-call precedent — no new HTTP client
- * dependency added.
+ * OpenWeather Current + 5-day/3-hour Forecast APIs (ADR-018). Never throws — missing key,
+ * network failure, or non-OK response resolve to `null` / `[]` so schedulers degrade calmly.
  */
 @Injectable()
 export class OpenWeatherAdapter implements WeatherAdapterPort {
@@ -29,30 +44,97 @@ export class OpenWeatherAdapter implements WeatherAdapterPort {
     }
 
     try {
-      const url = `${OPENWEATHER_BASE_URL}?lat=${lat}&lon=${lng}&appid=${this.apiKey}&units=metric`;
+      const url = `${OPENWEATHER_CURRENT_URL}?lat=${lat}&lon=${lng}&appid=${this.apiKey}&units=metric`;
       const response = await fetch(url);
       if (!response.ok) {
-        this.logger.warn(`OpenWeather responded with status ${response.status}.`);
+        this.logger.warn(`OpenWeather current responded with status ${response.status}.`);
         return null;
       }
 
-      const body = (await response.json()) as OpenWeatherResponse;
+      const body = (await response.json()) as OpenWeatherCurrentResponse;
       const tempC = body.main?.temp;
       const condition = body.weather?.[0]?.main;
       const conditionId = body.weather?.[0]?.id;
       if (tempC === undefined || condition === undefined || conditionId === undefined) {
-        this.logger.warn('OpenWeather response missing expected fields.');
+        this.logger.warn('OpenWeather current response missing expected fields.');
         return null;
       }
+
+      const humidityRaw = body.main?.humidity;
+      const feelsLikeRaw = body.main?.feels_like;
+      const rainMm =
+        body.rain?.['3h'] ?? body.rain?.['1h'] ?? (body.rain ? null : 0);
 
       return {
         tempC,
         condition,
         heavyRain: isHeavyRain(conditionId),
         extremeHeat: isExtremeHeat(tempC),
+        humidityPct:
+          humidityRaw !== undefined && Number.isFinite(humidityRaw) ? humidityRaw : null,
+        windKmh: windMsToKmh(body.wind?.speed),
+        windDir: windDirFromDeg(body.wind?.deg),
+        rainMm: rainMm !== null && rainMm !== undefined && Number.isFinite(rainMm) ? rainMm : null,
+        feelsLikeC:
+          feelsLikeRaw !== undefined && Number.isFinite(feelsLikeRaw) ? feelsLikeRaw : null,
       };
     } catch (error) {
-      this.logger.warn(`OpenWeather fetch failed: ${error instanceof Error ? error.message : error}`);
+      this.logger.warn(
+        `OpenWeather current fetch failed: ${error instanceof Error ? error.message : error}`,
+      );
+      return null;
+    }
+  }
+
+  async fetchForecast(lat: number, lng: number): Promise<WeatherForecastDay[] | null> {
+    if (!this.apiKey) {
+      return null;
+    }
+
+    try {
+      const url = `${OPENWEATHER_FORECAST_URL}?lat=${lat}&lon=${lng}&appid=${this.apiKey}&units=metric`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        this.logger.warn(`OpenWeather forecast responded with status ${response.status}.`);
+        return null;
+      }
+
+      const body = (await response.json()) as OpenWeatherForecastResponse;
+      const slots = (body.list ?? [])
+        .map((item) => {
+          const tempC = item.main?.temp;
+          const condition = item.weather?.[0]?.main;
+          const conditionId = item.weather?.[0]?.id;
+          if (
+            item.dt === undefined ||
+            tempC === undefined ||
+            condition === undefined ||
+            conditionId === undefined
+          ) {
+            return null;
+          }
+          return {
+            dt: item.dt,
+            tempC,
+            tempMinC: item.main?.temp_min ?? tempC,
+            tempMaxC: item.main?.temp_max ?? tempC,
+            condition,
+            conditionId,
+            pop: typeof item.pop === 'number' ? item.pop : 0,
+          };
+        })
+        .filter((s): s is NonNullable<typeof s> => s != null);
+
+      if (slots.length === 0) {
+        this.logger.warn('OpenWeather forecast response had no usable slots.');
+        return null;
+      }
+
+      return aggregateForecastDays(slots);
+    } catch (error) {
+      this.logger.warn(
+        `OpenWeather forecast fetch failed: ${error instanceof Error ? error.message : error}`,
+      );
       return null;
     }
   }

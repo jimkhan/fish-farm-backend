@@ -41,6 +41,9 @@ export class RefreshWeatherScheduler {
         continue;
       }
 
+      const forecast =
+        (await this.weather.fetchForecast(project.siteLat, project.siteLng)) ?? [];
+
       await this.snapshots.upsert(
         WeatherSnapshot.reconstitute({
           projectId: project.id,
@@ -49,6 +52,12 @@ export class RefreshWeatherScheduler {
           heavyRain: reading.heavyRain,
           extremeHeat: reading.extremeHeat,
           fetchedAt: new Date(),
+          forecast,
+          humidityPct: reading.humidityPct,
+          windKmh: reading.windKmh,
+          windDir: reading.windDir,
+          rainMm: reading.rainMm,
+          feelsLikeC: reading.feelsLikeC,
         }),
       );
     }

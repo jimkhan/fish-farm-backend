@@ -12,6 +12,12 @@ function snapshot(fetchedAt: Date): WeatherSnapshot {
     heavyRain: false,
     extremeHeat: false,
     fetchedAt,
+    forecast: null,
+    humidityPct: null,
+    windKmh: null,
+    windDir: null,
+    rainMm: null,
+    feelsLikeC: null,
   });
 }
 

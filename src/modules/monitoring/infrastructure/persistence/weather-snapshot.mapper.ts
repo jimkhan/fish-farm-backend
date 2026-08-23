@@ -9,5 +9,11 @@ export function toDomain(model: WeatherSnapshotPersistenceModel): WeatherSnapsho
     heavyRain: model.heavyRain,
     extremeHeat: model.extremeHeat,
     fetchedAt: model.fetchedAt,
+    forecast: model.forecastJson ?? null,
+    humidityPct: model.humidityPct ?? null,
+    windKmh: model.windKmh ?? null,
+    windDir: model.windDir ?? null,
+    rainMm: model.rainMm ?? null,
+    feelsLikeC: model.feelsLikeC ?? null,
   });
 }

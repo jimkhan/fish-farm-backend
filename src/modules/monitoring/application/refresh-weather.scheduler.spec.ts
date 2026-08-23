@@ -27,7 +27,18 @@ function setup(overrides: { projects?: Project[] } = {}) {
     save: jest.fn(),
   };
   const weather: jest.Mocked<WeatherAdapterPort> = {
-    fetch: jest.fn().mockResolvedValue({ tempC: 34, condition: 'Clear', heavyRain: false, extremeHeat: false }),
+    fetch: jest.fn().mockResolvedValue({
+      tempC: 34,
+      condition: 'Clear',
+      heavyRain: false,
+      extremeHeat: false,
+      humidityPct: 70,
+      windKmh: 12,
+      windDir: 'SW',
+      rainMm: 0,
+      feelsLikeC: 36,
+    }),
+    fetchForecast: jest.fn().mockResolvedValue([]),
   };
   const snapshots: jest.Mocked<WeatherSnapshotEventRepositoryPort> = {
     upsert: jest.fn().mockResolvedValue(undefined),
@@ -57,6 +68,11 @@ describe('RefreshWeatherScheduler (TASK-036, F1/R3)', () => {
       condition: 'Clear',
       heavyRain: false,
       extremeHeat: false,
+      humidityPct: 60,
+      windKmh: 8,
+      windDir: 'N',
+      rainMm: 0,
+      feelsLikeC: 31,
     });
 
     await scheduler.refresh();

@@ -11,6 +11,7 @@ import { TenantModule } from '../../shared-kernel/tenant/tenant.module';
 import { GetCameraConfigUseCase } from './application/get-camera-config.usecase';
 import { CAMERA_REPOSITORY } from './application/ports/camera-repository.port';
 import { GetWeatherUseCase } from './application/get-weather.usecase';
+import { RefreshProjectWeatherUseCase } from './application/refresh-project-weather.usecase';
 import { RefreshWeatherScheduler } from './application/refresh-weather.scheduler';
 import { WEATHER_ADAPTER } from './application/ports/weather-adapter.port';
 import { WEATHER_SNAPSHOT_EVENT_REPOSITORY } from './application/ports/weather-snapshot-event-repository.port';
@@ -27,7 +28,7 @@ import { WeatherController } from './presentation/weather.controller';
 /**
  * MOD-10's camera + weather slices (TASK-035 — camera, read-only; TASK-036 — weather adapter +
  * cache + graceful degradation; daily summary (TASK-037) is a separate sibling task). `ProjectsModule`
- * is `@Global()`, so `PROJECT_REPOSITORY` (`RefreshWeatherScheduler`'s cross-tenant scan) is
+ * is `@Global()`, so `PROJECT_REPOSITORY` (`RefreshWeatherScheduler` / on-demand refresh) is
  * injectable without an explicit import.
  */
 @Module({
@@ -40,6 +41,7 @@ import { WeatherController } from './presentation/weather.controller';
   providers: [
     GetCameraConfigUseCase,
     GetWeatherUseCase,
+    RefreshProjectWeatherUseCase,
     RefreshWeatherScheduler,
     // Request-scoped: depends on TenantContext (Scope.REQUEST) — same factory shape as
     // TypeOrmProjectMembershipRepository (TASK-010).

@@ -22,6 +22,12 @@ export class TypeOrmWeatherSnapshotEventRepository implements WeatherSnapshotEve
     model.heavyRain = snapshot.heavyRain;
     model.extremeHeat = snapshot.extremeHeat;
     model.fetchedAt = snapshot.fetchedAt;
+    model.forecastJson = snapshot.forecast ? [...snapshot.forecast] : null;
+    model.humidityPct = snapshot.humidityPct;
+    model.windKmh = snapshot.windKmh;
+    model.windDir = snapshot.windDir;
+    model.rainMm = snapshot.rainMm;
+    model.feelsLikeC = snapshot.feelsLikeC;
     await this.repository.save(model);
   }
 }

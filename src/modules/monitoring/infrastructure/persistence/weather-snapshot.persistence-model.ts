@@ -1,17 +1,11 @@
 import { Column, Entity, Index } from 'typeorm';
 import { BaseProjectOwnedPersistenceModel } from '../../../../platform/persistence/base-project-owned.persistence-model';
+import type { WeatherForecastDay } from '../../domain/weather-forecast-day';
 
 /**
  * `weather_snapshot` table (TASK-036, ERD `WEATHER_SNAPSHOT`, ADR-018). Project-owned (R9).
- *
- * **Deliberate, minor ERD divergence**: ERD models `project_id` itself as the primary key (a
- * pure 1:1 cache row). This extends `BaseProjectOwnedPersistenceModel` instead (its own `id` PK
- * + a *unique*-indexed `project_id`) so the read path can go through the sanctioned
- * `ScopedRepository` — MOD-01 R2 explicitly forbids raw `Repository`/query-builder access to
- * project-owned tables, and `ScopedRepository<T>` is generically constrained to
- * `BaseProjectOwnedPersistenceModel`. The `UNIQUE` index still enforces ERD's real invariant (at
- * most one row per project) — same 1:1 guarantee, different physical key. No `stale` column is
- * persisted — see `GetWeatherUseCase`'s doc comment for why it's computed live instead.
+ * Extra W-16 metric columns (humidity/wind/rain/feels-like) + forecast_json are nullable so
+ * older seed/cache rows remain readable until the next OpenWeather refresh.
  */
 @Entity('weather_snapshot')
 @Index(['projectId'], { unique: true })
@@ -30,4 +24,22 @@ export class WeatherSnapshotPersistenceModel extends BaseProjectOwnedPersistence
 
   @Column('timestamptz', { name: 'fetched_at' })
   fetchedAt!: Date;
+
+  @Column('jsonb', { name: 'forecast_json', nullable: true })
+  forecastJson!: WeatherForecastDay[] | null;
+
+  @Column('double precision', { name: 'humidity_pct', nullable: true })
+  humidityPct!: number | null;
+
+  @Column('double precision', { name: 'wind_kmh', nullable: true })
+  windKmh!: number | null;
+
+  @Column('varchar', { name: 'wind_dir', nullable: true })
+  windDir!: string | null;
+
+  @Column('double precision', { name: 'rain_mm', nullable: true })
+  rainMm!: number | null;
+
+  @Column('double precision', { name: 'feels_like_c', nullable: true })
+  feelsLikeC!: number | null;
 }
