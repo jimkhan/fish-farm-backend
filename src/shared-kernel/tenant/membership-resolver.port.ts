@@ -3,7 +3,7 @@
  * MOD-01 §4.6). Framework-free interface here; MOD-02 supplies the implementation via DI
  * (TASK-010), so the shared kernel has no build dependency on the identity module.
  */
-export type ProjectRole = 'OWNER' | 'WORKER' | 'PARTNER';
+export type ProjectRole = 'OWNER' | 'WORKER' | 'PARTNER' | 'INVESTOR';
 
 export interface ProjectMembershipView {
   projectId: string;

@@ -9,12 +9,12 @@ export interface MemberInvited extends DomainEvent {
   readonly name: 'MemberInvited';
   readonly membershipId: string;
   readonly userId: string;
-  readonly role: 'OWNER' | 'WORKER' | 'PARTNER';
+  readonly role: 'OWNER' | 'WORKER' | 'PARTNER' | 'INVESTOR';
 }
 
 export interface MemberRemoved extends DomainEvent {
   readonly name: 'MemberRemoved';
   readonly membershipId: string;
   readonly userId: string;
-  readonly role: 'OWNER' | 'WORKER' | 'PARTNER';
+  readonly role: 'OWNER' | 'WORKER' | 'PARTNER' | 'INVESTOR';
 }

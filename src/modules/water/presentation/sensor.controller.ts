@@ -1,4 +1,5 @@
 import { Body, Controller, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
+import { Public } from '../../../shared-kernel/auth/public.decorator';
 import { IngestSensorUseCase } from '../application/ingest-sensor.usecase';
 import { DeviceAuthedRequest, DeviceKeyGuard } from './device-key.guard';
 import { SensorReadingDto } from './dtos/sensor-reading.dto';
@@ -10,6 +11,11 @@ import { SensorReadingDto } from './dtos/sensor-reading.dto';
  * device row. `pondId`/`deviceId` come from that resolved device (`request.device`), never the
  * client. Returns `202 Accepted` (fire-and-forget telemetry), per the contract.
  */
+// `@Public()` exempts this route from the global `AuthenticatedGuard` — it authenticates by
+// device key (`security: [{ deviceKey: [] }]` in the contract), not by a user bearer token.
+// Global guards run before controller-scoped ones, so without this `DeviceKeyGuard` would
+// never be reached.
+@Public()
 @Controller('devices/:deviceId/readings')
 @UseGuards(DeviceKeyGuard)
 export class SensorIngestionController {

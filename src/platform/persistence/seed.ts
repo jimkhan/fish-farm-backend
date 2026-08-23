@@ -17,6 +17,7 @@ import { AppDataSource } from './data-source';
  *   coowner@fishfarm.test      OWNER   on Rupganj (2nd owner → exercises last-owner-409 protection)
  *   partner@fishfarm.test      PARTNER on Rupganj (read-only: no finance write, no admin)
  *   partner2@fishfarm.test     PARTNER on Savar
+ *   investor@fishfarm.test     INVESTOR on Rupganj (finance + reports + overview only)
  *   worker@fishfarm.test       WORKER  on Rupganj (mobile primary; no finance)
  *   worker2@fishfarm.test      WORKER  on Savar (single-project binding)
  *   reset@fishfarm.test        PARTNER on Savar — has an ACTIVE reset token (test reset-confirm)
@@ -66,6 +67,7 @@ const RESET_USER = U(8);
 const DEACTIVATED = U(9);
 const REMOVED_USER = U(10);
 const NOPROJECT = U(11);
+const INVESTOR = U(12);
 const RUPGANJ = P(1);
 const SAVAR = P(2);
 const TILAPIA = SP(1);
@@ -107,13 +109,13 @@ async function seed(): Promise<void> {
     // running the password-reset flow (mirrors the real invite path in InviteMemberUseCase).
     const unusableHash = await argon2.hash(sha256('unusable-' + INVITED), { type: argon2.argon2id });
 
-    const allUserIds = Array.from({ length: 11 }, (_, i) => U(i + 1));
+    const allUserIds = Array.from({ length: 12 }, (_, i) => U(i + 1));
     const seedAlertIds = [AL(1), AL(2), AL(3), AL(4), AL(5)];
     const allEmails = [
       'owner@fishfarm.test', 'partner@fishfarm.test', 'worker@fishfarm.test',
       'coowner@fishfarm.test', 'worker2@fishfarm.test', 'partner2@fishfarm.test',
       'invited@fishfarm.test', 'reset@fishfarm.test', 'deactivated@fishfarm.test',
-      'removed@fishfarm.test', 'noproject@fishfarm.test',
+      'removed@fishfarm.test', 'noproject@fishfarm.test', 'investor@fishfarm.test',
     ];
 
     // ── 1. Clean up this seed's own footprint (order matters only where noted — no hard FKs) ──
@@ -155,6 +157,7 @@ async function seed(): Promise<void> {
       [REMOVED_USER, 'removed@fishfarm.test', 'Sohel Rana', passwordHash, 'ACTIVE'],
       // No membership anywhere — the "no projects yet" empty state.
       [NOPROJECT, 'noproject@fishfarm.test', 'Taslima Khatun', passwordHash, 'ACTIVE'],
+      [INVESTOR, 'investor@fishfarm.test', 'Rafiqul Islam', passwordHash, 'ACTIVE'],
     ];
     for (const [id, email, name, hash, status] of users) {
       await q(
@@ -181,6 +184,7 @@ async function seed(): Promise<void> {
       [RUPGANJ, OWNER, 'OWNER', 'ACTIVE'],
       [RUPGANJ, COOWNER, 'OWNER', 'ACTIVE'], // 2nd owner → removing either is fine; the last is 409-blocked
       [RUPGANJ, PARTNER, 'PARTNER', 'ACTIVE'],
+      [RUPGANJ, INVESTOR, 'INVESTOR', 'ACTIVE'],
       [RUPGANJ, WORKER, 'WORKER', 'ACTIVE'],
       [RUPGANJ, INVITED, 'PARTNER', 'ACTIVE'], // invited-but-not-onboarded
       [RUPGANJ, DEACTIVATED, 'PARTNER', 'ACTIVE'], // membership live, but the user is deactivated
@@ -593,7 +597,8 @@ async function seed(): Promise<void> {
     console.log('LOGIN (dev password for every usable account):  ' + DEV_PASSWORD);
     console.log('  owner@fishfarm.test        OWNER   Rupganj + Savar   (full admin, finance)');
     console.log('  coowner@fishfarm.test      OWNER   Rupganj           (2nd owner → last-owner-409)');
-    console.log('  partner@fishfarm.test      PARTNER Rupganj           (read-only, no finance/admin)');
+    console.log('  partner@fishfarm.test      PARTNER Rupganj           (read-only ops + finance)');
+    console.log('  investor@fishfarm.test     INVESTOR Rupganj          (finance + reports + overview)');
     console.log('  partner2@fishfarm.test     PARTNER Savar');
     console.log('  worker@fishfarm.test       WORKER  Rupganj           (mobile primary)');
     console.log('  worker2@fishfarm.test      WORKER  Savar             (single-project binding)');

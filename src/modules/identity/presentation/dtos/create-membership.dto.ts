@@ -6,6 +6,6 @@ export class CreateMembershipDto {
   @IsEmail()
   email!: string;
 
-  @IsIn(['OWNER', 'WORKER', 'PARTNER'])
+  @IsIn(['OWNER', 'WORKER', 'PARTNER', 'INVESTOR'])
   role!: ProjectRole;
 }

@@ -2,56 +2,38 @@ import { ProjectRole } from '../../../shared-kernel/tenant/membership-resolver.p
 
 /**
  * Data-driven role → capability table (TASK-010, MOD-02 F3/§4.5/§6.3). The **single source of
- * truth** for "Worker: no finance/settings" and "Partner: read-only" — downstream modules
- * (e.g. MOD-08 finance) must translate their own `@Roles()` allow-lists from this table via
- * {@link rolesWithCapability} rather than re-encoding the rule, so the policy can't drift module
- * to module (module doc §6.3 risk note).
+ * truth** for role policy — downstream modules must use {@link rolesWithCapability} rather than
+ * re-encoding allow-lists (module doc §6.3).
+ *
+ * **INVESTOR** (finance-focused): finance + reports + project overview/portfolio only — no
+ * day-to-day operations (feed/water/tasks/camera/…), no writes.
  */
 export interface RoleCapabilities {
   /** May invite/assign/remove members of the project. */
   readonly canManageMembers: boolean;
-  /** May perform any state-changing action on the project (Partner is read-only, R5). */
+  /** May perform any state-changing action on the project (Partner/Investor are read-only, R5). */
   readonly canWrite: boolean;
-  /** May view/act on finance or settings (hidden from Worker, R… / FR-004). */
+  /** May view finance (hidden from Worker). */
   readonly canAccessFinanceSettings: boolean;
   /** May update the project aggregate itself — name/address/status (TASK-011, MOD-03 R1). */
   readonly canManageProjectSettings: boolean;
-  /**
-   * May record a treatment (TASK-028, MOD-07 §2.3 — "Owner (web): ...record treatments" is
-   * distinct from Worker's operational mortality/sampling logging).
-   */
+  /** May record a treatment (TASK-028). */
   readonly canManageTreatments: boolean;
-  /**
-   * May create inventory items and record receipts/adjustments (TASK-020, MOD-05 §2.3 —
-   * "Owner... inventory items + thresholds"; CON-023's own description names OWNER explicitly).
-   * Worker's only inventory-affecting path is the automatic feeding deduction TASK-022 adds.
-   */
+  /** May create inventory items and record receipts/adjustments (TASK-020). */
   readonly canManageInventory: boolean;
-  /**
-   * May configure water-quality safe-range thresholds (TASK-023, MOD-06 §2.3 — "Owner (web):
-   * configure thresholds..."; CON-027's own description names OWNER explicitly).
-   */
+  /** May configure water-quality safe-range thresholds (TASK-023). */
   readonly canManageWaterThresholds: boolean;
-  /**
-   * May define recurring tasks (TASK-041, MOD-12 — CON-030's own contract description names
-   * OWNER explicitly). Worker's task interaction is completion (`canWrite`), not definition.
-   */
+  /** May define recurring tasks (TASK-041). */
   readonly canManageTasks: boolean;
-  /**
-   * May record a financial transaction (TASK-032, MOD-08 R6 — CON-033's own contract description
-   * names OWNER explicitly). Distinct from `canAccessFinanceSettings` (Partner also holds that
-   * one, for read-only finance access, R6 "Partner read-only, including financials") — Partner
-   * must never hold this one, or the read/write split collapses.
-   */
+  /** May record a financial transaction (TASK-032) — Owner only. */
   readonly canManageFinance: boolean;
-  /**
-   * May view the daily owner summary / reports (TASK-037, MOD-10 §2.3 — "Owner (web): ...view
-   * the daily summary, export reports"; Worker's row explicitly states "no report access").
-   * Human-confirmed to also include Partner, same OWNER+PARTNER shape as
-   * `canAccessFinanceSettings` — the module doc's own financial-export line explicitly names
-   * "OWNER + PARTNER for financial," and nothing suggests reports should be stricter than finance.
-   */
+  /** May view daily summary / reports (TASK-037). */
   readonly canAccessReports: boolean;
+  /**
+   * May view day-to-day operations surfaces (ponds, feed, water, tasks, camera, weather,
+   * inventory, health, growth, harvest, alerts detail). Investor is false — finance-focused.
+   */
+  readonly canAccessOperations: boolean;
 }
 
 export const ROLE_CAPABILITIES: Record<ProjectRole, RoleCapabilities> = {
@@ -66,6 +48,7 @@ export const ROLE_CAPABILITIES: Record<ProjectRole, RoleCapabilities> = {
     canManageTasks: true,
     canManageFinance: true,
     canAccessReports: true,
+    canAccessOperations: true,
   },
   WORKER: {
     canManageMembers: false,
@@ -78,6 +61,7 @@ export const ROLE_CAPABILITIES: Record<ProjectRole, RoleCapabilities> = {
     canManageTasks: false,
     canManageFinance: false,
     canAccessReports: false,
+    canAccessOperations: true,
   },
   PARTNER: {
     canManageMembers: false,
@@ -90,6 +74,20 @@ export const ROLE_CAPABILITIES: Record<ProjectRole, RoleCapabilities> = {
     canManageTasks: false,
     canManageFinance: false,
     canAccessReports: true,
+    canAccessOperations: true,
+  },
+  INVESTOR: {
+    canManageMembers: false,
+    canWrite: false,
+    canAccessFinanceSettings: true,
+    canManageProjectSettings: false,
+    canManageTreatments: false,
+    canManageInventory: false,
+    canManageWaterThresholds: false,
+    canManageTasks: false,
+    canManageFinance: false,
+    canAccessReports: true,
+    canAccessOperations: false,
   },
 };
 

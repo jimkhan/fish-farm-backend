@@ -130,6 +130,7 @@ describe('Alert (TASK-015, MOD-09 §4.3/F1, R4/R5)', () => {
     it('Partner can never acknowledge, regardless of type', () => {
       const alert = Alert.reconstitute(baseProps);
       expect(alert.canBeAcknowledgedBy('PARTNER')).toBe(false);
+      expect(alert.canBeAcknowledgedBy('INVESTOR')).toBe(false);
     });
   });
 

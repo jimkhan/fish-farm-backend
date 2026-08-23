@@ -76,6 +76,7 @@ function missedTask(dueOn: Date): Task {
     recurrenceDays: null,
     status: 'MISSED',
     dueOn,
+    assigneeUserId: null,
   });
 }
 
@@ -120,6 +121,7 @@ function setup(
     findAllInCurrentProject: jest.fn().mockResolvedValue(overrides.tasks ?? []),
     findById: jest.fn(),
     save: jest.fn(),
+    deleteById: jest.fn(),
   };
 
   const useCase = new GetDailySummaryUseCase(

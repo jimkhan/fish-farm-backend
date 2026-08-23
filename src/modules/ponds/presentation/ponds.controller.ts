@@ -41,6 +41,8 @@ export class PondsController {
   ) {}
 
   @Get()
+  @UseGuards(RolesGuard)
+  @Roles(rolesWithCapability('canAccessOperations'), 'Operations are not available for your role.')
   async listHandler(): Promise<PondResponse[]> {
     const ponds = await this.listPonds.execute();
     return ponds.map(toResponse);

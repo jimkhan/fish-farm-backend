@@ -24,11 +24,9 @@ export interface PortfolioSummaryResult {
 }
 
 /**
- * `GET /portfolio/summary` (CON-035, FT-015, AC-034/035/112, R5/R8). "Includes only projects where
- * the caller is OWNER" is a query FILTER, not an access-denial rule — a pure Worker/Partner (owner
- * of nothing) gets a valid, empty portfolio rather than a 403 (the spec's own edge case 2 leaves
- * "403 or scoped redirect" as an explicit either/or; an empty, correctly-scoped result satisfies
- * both AC-034 and AC-035 without inventing a role gate).
+ * `GET /portfolio/summary` (CON-035, FT-015, AC-034/035/112, R5/R8). Includes projects where
+ * the caller is OWNER or INVESTOR — a query FILTER, not an access-denial rule. A pure Worker/
+ * Partner (owner/investor of nothing) gets a valid empty portfolio rather than a 403.
  *
  * `netProfitMinor` (TASK-033): a real cross-project sum via `PortfolioFinancePort` — single BDT
  * amount, no per-currency subtotals (ADR-018; BACKLOG's TASK-033 entry supersedes the module
@@ -47,7 +45,7 @@ export class PortfolioSummaryUseCase {
 
   async execute(userId: string): Promise<PortfolioSummaryResult> {
     const ownedMemberships = (await this.memberships.findActiveByUserId(userId)).filter(
-      (m) => m.role === 'OWNER',
+      (m) => m.role === 'OWNER' || m.role === 'INVESTOR',
     );
 
     const projects = await Promise.all(

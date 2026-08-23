@@ -119,8 +119,8 @@ export class Alert {
     return this.props.state !== 'RESOLVED';
   }
 
-  /** R8/AC-059: Owner always; Worker only for operational types; Partner never. */
-  canBeAcknowledgedBy(role: 'OWNER' | 'WORKER' | 'PARTNER'): boolean {
+  /** R8/AC-059: Owner always; Worker only for operational types; Partner/Investor never. */
+  canBeAcknowledgedBy(role: 'OWNER' | 'WORKER' | 'PARTNER' | 'INVESTOR'): boolean {
     if (role === 'OWNER') return true;
     if (role === 'WORKER') return OPERATIONAL_ALERT_TYPES.includes(this.props.type);
     return false;
