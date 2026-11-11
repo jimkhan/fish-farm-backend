@@ -29,6 +29,7 @@ function setup(overrides: { project?: Project | null } = {}) {
     save: jest.fn().mockImplementation(async (p: Pond) => p),
   };
   const projects: jest.Mocked<ProjectRepositoryPort> = {
+    findByIds: jest.fn().mockResolvedValue([]),
     findAllActive: jest.fn(),
     findById: jest
       .fn()

@@ -43,26 +43,35 @@ function setup(overrides: {
       .fn()
       .mockResolvedValue(overrides.memberships ?? [membership('p-a', 'OWNER'), membership('p-b', 'OWNER')]),
   };
+  /** Only the ids actually asked for get an entry — mirroring a real grouped query, which
+   *  returns no row for a project with nothing to aggregate. */
+  const mapFor = (source: Record<string, number> | undefined) =>
+    jest.fn().mockImplementation(async (ids: readonly string[]) => {
+      const entries = ids
+        .filter((id) => source?.[id] !== undefined)
+        .map((id) => [id, source![id]] as const);
+      return new Map(entries);
+    });
+
   const projects: jest.Mocked<ProjectRepositoryPort> = {
     findAllActive: jest.fn(),
     findById: jest.fn().mockImplementation(async (id: string) => projectFixture(id, `Project ${id}`)),
+    findByIds: jest
+      .fn()
+      .mockImplementation(async (ids: readonly string[]) =>
+        ids.map((id) => projectFixture(id, `Project ${id}`)),
+      ),
     findPage: jest.fn(),
     save: jest.fn(),
   };
   const biomass: jest.Mocked<PortfolioBiomassPort> = {
-    getTotalBiomassKg: jest
-      .fn()
-      .mockImplementation(async (id: string) => overrides.biomassByProject?.[id] ?? 0),
+    getTotalBiomassKgFor: mapFor(overrides.biomassByProject),
   };
   const alerts: jest.Mocked<PortfolioAlertsPort> = {
-    countOpenCritical: jest
-      .fn()
-      .mockImplementation(async (id: string) => overrides.alertsByProject?.[id] ?? 0),
+    countOpenCriticalFor: mapFor(overrides.alertsByProject),
   };
   const finance: jest.Mocked<PortfolioFinancePort> = {
-    getNetProfitMinor: jest
-      .fn()
-      .mockImplementation(async (id: string) => overrides.netProfitByProject?.[id] ?? 0),
+    getNetProfitMinorFor: mapFor(overrides.netProfitByProject),
   };
 
   const useCase = new PortfolioSummaryUseCase(memberships, projects, biomass, alerts, finance);
@@ -95,9 +104,9 @@ describe('PortfolioSummaryUseCase (TASK-012/033, CON-035, AC-034/035/112, R5/R8)
     expect(result.totalBiomassKg).toBe(0);
     expect(result.openCriticalAlerts).toBe(0);
     expect(result.netProfitMinor).toBe(0);
-    expect(biomass.getTotalBiomassKg).not.toHaveBeenCalled();
-    expect(alerts.countOpenCritical).not.toHaveBeenCalled();
-    expect(finance.getNetProfitMinor).not.toHaveBeenCalled();
+    expect(biomass.getTotalBiomassKgFor).not.toHaveBeenCalled();
+    expect(alerts.countOpenCriticalFor).not.toHaveBeenCalled();
+    expect(finance.getNetProfitMinorFor).not.toHaveBeenCalled();
   });
 
   it('AC-112: sums real net profit (BDT) across owned projects only', async () => {

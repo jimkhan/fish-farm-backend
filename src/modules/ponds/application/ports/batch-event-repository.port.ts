@@ -8,8 +8,16 @@ import { Batch } from '../../domain/batch.entity';
  */
 export interface BatchEventRepositoryPort {
   findById(batchId: string): Promise<Batch | null>;
-  /** TASK-021: every ACTIVE batch across every project — `FeedingReminderScheduler` groups these by (project, feed type). */
-  findAllActive(): Promise<Batch[]>;
+  /**
+   * TASK-021: every batch that still has stock in a pond, across every project —
+   * `FeedingReminderScheduler` groups these by (project, feed type).
+   *
+   * That means `ACTIVE` **and** `HARVESTING`: a partially-harvested batch still has fish in the
+   * water and still needs feeding. Only `CLOSED` — nothing left, all dead or all harvested —
+   * drops out. Named for the question it answers rather than for a status value, because the
+   * previous `findAllActive()` invited exactly the off-by-one-status mistake.
+   */
+  findWithStockInPond(): Promise<Batch[]>;
   save(batch: Batch): Promise<Batch>;
 }
 

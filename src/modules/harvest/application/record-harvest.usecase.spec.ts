@@ -72,6 +72,7 @@ function setup(
     save: jest.fn(),
   };
   const projects: jest.Mocked<ProjectRepositoryPort> = {
+    findByIds: jest.fn().mockResolvedValue([]),
     findAllActive: jest.fn(),
     findById: jest
       .fn()

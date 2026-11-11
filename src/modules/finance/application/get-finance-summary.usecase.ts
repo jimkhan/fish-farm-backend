@@ -56,6 +56,7 @@ export class GetFinanceSummaryUseCase {
       allBatches.map((batch) => ({
         speciesId: batch.speciesId,
         survivalEstimate: batch.survivalEstimate,
+        survivorsExcludingHarvest: batch.survivorsExcludingHarvest,
         initialCount: batch.initialCount,
         latestAvgWeightG: batch.latestAvgWeightG,
       })),

@@ -47,31 +47,46 @@ export class PortfolioSummaryUseCase {
     const ownedMemberships = (await this.memberships.findActiveByUserId(userId)).filter(
       (m) => m.role === 'OWNER' || m.role === 'INVESTOR',
     );
+    const projectIds = ownedMemberships.map((m) => m.projectId);
 
-    const projects = await Promise.all(
-      ownedMemberships.map(async (membership) => {
-        const project = await this.projects.findById(membership.projectId);
-        const [biomassKg, openAlerts, netProfitMinor] = await Promise.all([
-          this.biomass.getTotalBiomassKg(membership.projectId),
-          this.alerts.countOpenCritical(membership.projectId),
-          this.finance.getNetProfitMinor(membership.projectId),
-        ]);
-        return {
-          projectId: membership.projectId,
-          name: project?.name ?? '',
-          biomassKg,
-          openAlerts,
-          netProfitMinor,
-        };
-      }),
-    );
+    if (projectIds.length === 0) {
+      return {
+        totalBiomassKg: 0,
+        openCriticalAlerts: 0,
+        netProfitMinor: 0,
+        currency: 'BDT',
+        projects: [],
+      };
+    }
+
+    // Five queries total, whatever the portfolio size. This previously issued four per project
+    // (`findById` plus each of the three aggregates) inside a `Promise.all` over the membership
+    // list — 41 round trips for a ten-project owner, on the first screen after login.
+    const [projects, biomassByProject, alertsByProject, netProfitByProject] = await Promise.all([
+      this.projects.findByIds(projectIds),
+      this.biomass.getTotalBiomassKgFor(projectIds),
+      this.alerts.countOpenCriticalFor(projectIds),
+      this.finance.getNetProfitMinorFor(projectIds),
+    ]);
+
+    const nameById = new Map(projects.map((project) => [project.id, project.name]));
+
+    // Driven by the membership list, not the query results: a project with no batches, alerts or
+    // transactions must still appear in the portfolio, at zero.
+    const rows = projectIds.map((projectId) => ({
+      projectId,
+      name: nameById.get(projectId) ?? '',
+      biomassKg: biomassByProject.get(projectId) ?? 0,
+      openAlerts: alertsByProject.get(projectId) ?? 0,
+      netProfitMinor: netProfitByProject.get(projectId) ?? 0,
+    }));
 
     return {
-      totalBiomassKg: projects.reduce((sum, p) => sum + p.biomassKg, 0),
-      openCriticalAlerts: projects.reduce((sum, p) => sum + p.openAlerts, 0),
-      netProfitMinor: projects.reduce((sum, p) => sum + p.netProfitMinor, 0),
+      totalBiomassKg: rows.reduce((sum, p) => sum + p.biomassKg, 0),
+      openCriticalAlerts: rows.reduce((sum, p) => sum + p.openAlerts, 0),
+      netProfitMinor: rows.reduce((sum, p) => sum + p.netProfitMinor, 0),
       currency: 'BDT',
-      projects: projects.map(({ projectId, name, biomassKg, openAlerts }) => ({
+      projects: rows.map(({ projectId, name, biomassKg, openAlerts }) => ({
         projectId,
         name,
         biomassKg,

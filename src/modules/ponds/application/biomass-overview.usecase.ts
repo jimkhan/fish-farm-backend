@@ -18,6 +18,7 @@ export class BiomassOverviewUseCase {
       batches.map((b) => ({
         speciesId: b.speciesId,
         survivalEstimate: b.survivalEstimate,
+        survivorsExcludingHarvest: b.survivorsExcludingHarvest,
         initialCount: b.initialCount,
         latestAvgWeightG: b.latestAvgWeightG,
       })),

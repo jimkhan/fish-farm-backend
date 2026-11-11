@@ -6,6 +6,11 @@
 export * from './anchors';
 export { toBangla, toGregorian } from './conversion';
 export { formatBangla, formatDual, banglaMonthName, FormatOptions } from './format';
+export {
+  BANGLADESH_UTC_OFFSET_MINUTES,
+  bangladeshLocalDayIso,
+  toBangladeshLocalDay,
+} from './local-day';
 export { toBengaliNumerals } from './numerals';
 export {
   getAdvisoriesForRitu,

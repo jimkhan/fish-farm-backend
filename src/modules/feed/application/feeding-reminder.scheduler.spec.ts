@@ -66,7 +66,7 @@ function setup(
 ) {
   const batches: jest.Mocked<BatchEventRepositoryPort> = {
     findById: jest.fn(),
-    findAllActive: jest.fn().mockResolvedValue(overrides.activeBatches ?? [makeBatch()]),
+    findWithStockInPond: jest.fn().mockResolvedValue(overrides.activeBatches ?? [makeBatch()]),
     save: jest.fn(),
   };
   const species: jest.Mocked<SpeciesRepositoryPort> = {

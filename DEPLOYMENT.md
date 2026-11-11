@@ -54,6 +54,35 @@ curl -k https://localhost:8443/health
   design) and registered with MediaMTX dynamically via its HTTP API (`media-server:9997`) once
   TASK-035 lands. `deploy/mediamtx.yml` intentionally has no hardcoded camera paths.
 
+## Logging & request tracing (NFR-005)
+
+Every HTTP request — including ones rejected before a controller runs (401 from
+`AuthMiddleware`, 403 from `ProjectScopeGuard`, 400 from `ValidationPipe`, 404 for unknown
+routes) — produces exactly one `http.request` log line when the response finishes:
+
+```json
+{"ts":"2026-09-14T10:12:03.412Z","level":"warn","context":"Http","msg":"POST /projects/:projectId/ponds 400 8.3ms",
+ "event":"http.request","method":"POST","path":"/projects/6b1…/ponds","route":"/projects/:projectId/ponds",
+ "status":400,"durationMs":8.3,"correlationId":"6c2e…","userId":"aaaa…","projectId":"6b1…","role":"OWNER",
+ "handler":"PondsController.createHandler","ip":"203.0.113.9","userAgent":"okhttp/4.12","responseBytes":142,
+ "errorCode":"VALIDATION","errorMessage":"Validation failed.","errorDetails":{"errors":["name should not be empty"]}}
+```
+
+Severity is `info` for 2xx/3xx, `warn` for 4xx, `error` for 5xx (5xx additionally log the stack
+under `DomainExceptionFilter`). `correlationId` is the same value the client receives in the
+`x-correlation-id` response header and in the `Error` body, so a screenshot from the mobile app
+can be matched to the exact server line. Passwords, tokens, API keys and similar fields are
+redacted by key name wherever they appear.
+
+| Variable        | Values                                        | Default                                   |
+| --------------- | --------------------------------------------- | ----------------------------------------- |
+| `LOG_LEVEL`     | `fatal` `error` `warn` `log` `debug` `verbose` | `debug` in development, `log` otherwise   |
+| `LOG_FORMAT`    | `json` `pretty`                               | `pretty` in development, `json` otherwise |
+| `LOG_HTTP_BODY` | `true` `false`                                | `false` — adds the redacted request body  |
+
+In compose, `docker compose logs -f api` shows the JSON lines; pipe through `jq` to filter, e.g.
+`docker compose logs --no-log-prefix api | jq -c 'select(.status>=400)'`.
+
 ## Graceful degradation (NFR-007)
 
 The weather API or a site camera being down must degrade the owner dashboard (feature disabled),

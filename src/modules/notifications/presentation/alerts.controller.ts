@@ -11,6 +11,14 @@ interface AlertResponse {
   severity: string;
   state: string;
   message: string;
+  /**
+   * The entity this alert is about — pond id for `WATER_THRESHOLD`/`WATER_EMERGENCY`, batch id
+   * for `ABNORMAL_MORTALITY`, inventory item id for `LOW_STOCK`, task id for `MISSED_TASK`.
+   * Exposed so a client can correlate an alert to the row it belongs to structurally; without it
+   * the web overview resorted to substring-matching the pond name inside `message`, which
+   * mis-flagged "Pond 1" for a "Pond 12" alert and broke silently on rename.
+   */
+  sourceRef: string;
   raisedAt: string;
   acknowledgedAt: string | null;
   /** TASK-017/R7: set once this CRITICAL alert was re-notified past the SLA (AC-054). */
@@ -25,6 +33,7 @@ function toResponse(alert: Alert): AlertResponse {
     severity: alert.severity,
     state: alert.state,
     message: alert.message,
+    sourceRef: alert.sourceRef,
     raisedAt: alert.raisedAt.toISOString(),
     acknowledgedAt: alert.acknowledgedAt?.toISOString() ?? null,
     escalatedAt: alert.escalatedAt?.toISOString() ?? null,

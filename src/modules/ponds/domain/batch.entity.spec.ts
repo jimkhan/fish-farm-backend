@@ -15,6 +15,11 @@ const baseProps = {
   createdAt: new Date(),
 };
 
+/** A freshly stocked, untouched batch. */
+function activeBatch(overrides: Partial<typeof baseProps> = {}) {
+  return Batch.reconstitute({ ...baseProps, ...overrides });
+}
+
 describe('Batch (TASK-019, MOD-04 §4.3/F3, R4/R6)', () => {
   describe('AC-062: a fresh batch', () => {
     it('survivalEstimate equals initialCount', () => {
@@ -79,6 +84,55 @@ describe('Batch (TASK-019, MOD-04 §4.3/F3, R4/R6)', () => {
       const batch = Batch.reconstitute(baseProps).applySampling(25).applyHarvest(300);
       expect(batch.survivalEstimate).toBe(700);
       expect(batch.biomassGrams).toBe(700 * 25);
+    });
+  });
+
+  describe('status transitions (MOD-04 §2.5 edge case 7: ACTIVE→HARVESTING→CLOSED)', () => {
+    it('a partial harvest moves ACTIVE → HARVESTING, and stock remains', () => {
+      const harvested = activeBatch({ initialCount: 1000 }).applyHarvest(400);
+      expect(harvested.status).toBe('HARVESTING');
+      expect(harvested.survivalEstimate).toBe(600);
+    });
+
+    it('harvesting the last of the stock moves it to CLOSED', () => {
+      const closed = activeBatch({ initialCount: 1000 }).applyHarvest(1000);
+      expect(closed.status).toBe('CLOSED');
+      expect(closed.survivalEstimate).toBe(0);
+    });
+
+    it('a batch wiped out by mortality goes straight to CLOSED — it was never harvested', () => {
+      const wipedOut = activeBatch({ initialCount: 500 }).applyMortality(500);
+      expect(wipedOut.status).toBe('CLOSED');
+    });
+
+    it('partial mortality leaves the batch ACTIVE', () => {
+      expect(activeBatch({ initialCount: 500 }).applyMortality(100).status).toBe('ACTIVE');
+    });
+
+    it('CLOSED is terminal — a late duplicate event cannot reopen it', () => {
+      const closed = activeBatch({ initialCount: 100 }).applyHarvest(100);
+      expect(closed.applyHarvest(1).status).toBe('CLOSED');
+      expect(closed.applyMortality(1).status).toBe('CLOSED');
+    });
+  });
+
+  describe('survival excludes harvest (AC-099 amended)', () => {
+    it('a harvested fish still counts as a survivor — it was sold, not lost', () => {
+      const harvested = activeBatch({ initialCount: 1000 }).applyHarvest(600);
+      expect(harvested.survivalEstimate).toBe(400); // stock left in the pond
+      expect(harvested.survivorsExcludingHarvest).toBe(1000); // nothing died
+    });
+
+    it('mortality reduces both figures', () => {
+      const batch = activeBatch({ initialCount: 1000 }).applyMortality(200).applyHarvest(500);
+      expect(batch.survivalEstimate).toBe(300);
+      expect(batch.survivorsExcludingHarvest).toBe(800);
+    });
+
+    it('both clamp at zero on impossible data (R4)', () => {
+      const bad = activeBatch({ initialCount: 100 }).applyMortality(500);
+      expect(bad.survivalEstimate).toBe(0);
+      expect(bad.survivorsExcludingHarvest).toBe(0);
     });
   });
 });

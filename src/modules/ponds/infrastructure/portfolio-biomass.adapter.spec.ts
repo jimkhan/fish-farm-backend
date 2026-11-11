@@ -1,4 +1,4 @@
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { PortfolioBiomassAdapter } from './portfolio-biomass.adapter';
 import { BatchPersistenceModel } from './persistence/batch.persistence-model';
 
@@ -29,10 +29,47 @@ describe('PortfolioBiomassAdapter (TASK-012, MOD-03 PortfolioBiomassPort)', () =
     } as unknown as jest.Mocked<Repository<BatchPersistenceModel>>;
 
     const adapter = new PortfolioBiomassAdapter(repository);
-    const totalKg = await adapter.getTotalBiomassKg('p-1');
+    const totals = await adapter.getTotalBiomassKgFor(['p-1']);
 
-    expect(repository.find).toHaveBeenCalledWith({ where: { projectId: 'p-1' } });
-    expect(totalKg).toBe((1000 * 20 + 500 * 10) / 1000);
+    expect(repository.find).toHaveBeenCalledWith({ where: { projectId: In(['p-1']) } });
+    expect(totals.get('p-1')).toBe((1000 * 20 + 500 * 10) / 1000);
+  });
+
+  it('splits totals per project in a single fetch — one query for the whole portfolio', async () => {
+    const repository = {
+      find: jest.fn().mockResolvedValue([
+        batchModel({ id: 'b-1', projectId: 'p-1', latestAvgWeightG: 20, initialCount: 1000 }),
+        batchModel({ id: 'b-2', projectId: 'p-2', latestAvgWeightG: 10, initialCount: 500 }),
+      ]),
+    } as unknown as jest.Mocked<Repository<BatchPersistenceModel>>;
+
+    const adapter = new PortfolioBiomassAdapter(repository);
+    const totals = await adapter.getTotalBiomassKgFor(['p-1', 'p-2']);
+
+    expect(repository.find).toHaveBeenCalledTimes(1);
+    expect(totals.get('p-1')).toBe(20);
+    expect(totals.get('p-2')).toBe(5);
+  });
+
+  it('omits a project with no batches — the caller reads a miss as zero', async () => {
+    const repository = {
+      find: jest.fn().mockResolvedValue([batchModel({ projectId: 'p-1' })]),
+    } as unknown as jest.Mocked<Repository<BatchPersistenceModel>>;
+
+    const adapter = new PortfolioBiomassAdapter(repository);
+    const totals = await adapter.getTotalBiomassKgFor(['p-1', 'p-empty']);
+
+    expect(totals.has('p-empty')).toBe(false);
+  });
+
+  it('queries nothing when the portfolio is empty', async () => {
+    const repository = { find: jest.fn() } as unknown as jest.Mocked<
+      Repository<BatchPersistenceModel>
+    >;
+    const adapter = new PortfolioBiomassAdapter(repository);
+
+    expect((await adapter.getTotalBiomassKgFor([])).size).toBe(0);
+    expect(repository.find).not.toHaveBeenCalled();
   });
 
   it('reflects R4 survival clamping and R6 no-weight-yet via the shared mapper/service', async () => {
@@ -44,7 +81,7 @@ describe('PortfolioBiomassAdapter (TASK-012, MOD-03 PortfolioBiomassPort)', () =
     } as unknown as jest.Mocked<Repository<BatchPersistenceModel>>;
 
     const adapter = new PortfolioBiomassAdapter(repository);
-    expect(await adapter.getTotalBiomassKg('p-1')).toBe(0);
+    expect((await adapter.getTotalBiomassKgFor(['p-1'])).get('p-1')).toBe(0);
   });
 
   it('an empty project has zero biomass', async () => {
@@ -53,6 +90,6 @@ describe('PortfolioBiomassAdapter (TASK-012, MOD-03 PortfolioBiomassPort)', () =
     } as unknown as jest.Mocked<Repository<BatchPersistenceModel>>;
 
     const adapter = new PortfolioBiomassAdapter(repository);
-    expect(await adapter.getTotalBiomassKg('p-1')).toBe(0);
+    expect((await adapter.getTotalBiomassKgFor(['p-1'])).get('p-1') ?? 0).toBe(0);
   });
 });

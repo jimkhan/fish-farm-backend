@@ -73,7 +73,7 @@ export class GetPondFcrUseCase {
       batchResults.push({
         batchId: batch.id,
         speciesId: batch.speciesId,
-        survivalRate: calculateSurvivalRate(batch.survivalEstimate, batch.initialCount),
+        survivalRate: calculateSurvivalRate(batch.survivorsExcludingHarvest, batch.initialCount),
       });
 
       const history = await this.samplings.findForBatch(batch.id);

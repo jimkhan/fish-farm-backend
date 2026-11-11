@@ -24,6 +24,13 @@ function selectedBackend(): Backend {
   return raw === 'container' || raw === 'local' ? raw : 'auto';
 }
 
+/**
+ * Cap on any admin statement (CREATE/DROP DATABASE) and on connecting. Comfortably above a
+ * healthy operation (single-digit ms locally) and well inside a suite's 60s `beforeAll` budget,
+ * so a stall surfaces as a named Postgres error rather than an unexplained suite timeout.
+ */
+const ADMIN_TIMEOUT_MS = 15_000;
+
 /** Local-Postgres connection details; defaults mirror `.env.example`. */
 function localAdminConfig() {
   return {
@@ -49,10 +56,16 @@ async function startLocalPostgres(): Promise<{ container: DisposablePostgres; db
   // Lowercase, <= 63 chars, and prefixed so a leaked database is obvious and easy to sweep up.
   const database = `fms_test_${randomUUID().replace(/-/g, '').slice(0, 20)}`;
 
-  const adminClient = new Client(admin);
+  const adminClient = new Client({ ...admin, connectionTimeoutMillis: ADMIN_TIMEOUT_MS });
   await adminClient.connect();
   try {
-    await adminClient.query(`CREATE DATABASE "${database}"`);
+    // Fail fast and loudly if CREATE/DROP ever blocks. A `beforeAll` that stalls here just
+    // exhausts the suite's 60s budget and reports an opaque timeout with no cause; a statement
+    // timeout turns the same situation into a real Postgres error naming the blocked statement.
+    await adminClient.query(`SET statement_timeout = ${ADMIN_TIMEOUT_MS}`);
+    await adminClient.query(`SET lock_timeout = ${ADMIN_TIMEOUT_MS}`);
+    // TEMPLATE template0 avoids serialising behind anything connected to template1.
+    await adminClient.query(`CREATE DATABASE "${database}" TEMPLATE template0`);
   } finally {
     await adminClient.end();
   }
@@ -60,9 +73,11 @@ async function startLocalPostgres(): Promise<{ container: DisposablePostgres; db
   return {
     container: {
       async stop(): Promise<void> {
-        const cleanupClient = new Client(admin);
+        const cleanupClient = new Client({ ...admin, connectionTimeoutMillis: ADMIN_TIMEOUT_MS });
         await cleanupClient.connect();
         try {
+          await cleanupClient.query(`SET statement_timeout = ${ADMIN_TIMEOUT_MS}`);
+          await cleanupClient.query(`SET lock_timeout = ${ADMIN_TIMEOUT_MS}`);
           // FORCE (Postgres 13+) evicts connections the app's pool may not have released yet.
           await cleanupClient.query(`DROP DATABASE IF EXISTS "${database}" WITH (FORCE)`);
         } catch {

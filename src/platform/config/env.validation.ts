@@ -34,6 +34,15 @@ export const envSchema = Joi.object({
   // `api` container over the compose network. Provisioned here by TASK-048 ahead of TASK-035's
   // camera-config endpoint — optional now, no consumer reads it yet.
   MEDIA_SERVER_BASE_URL: Joi.string().uri().optional(),
+  // Observability (NFR-005 traceability): the structured logger in `shared-kernel/logging`.
+  // `LOG_LEVEL` is the minimum level emitted (defaults: `debug` in development, `log` elsewhere);
+  // `LOG_FORMAT` picks one-JSON-object-per-line for log shippers or a coloured human-readable
+  // line for a terminal (defaults: `pretty` in development, `json` elsewhere); `LOG_HTTP_BODY`
+  // additionally includes the redacted request body in every request log line — off by default
+  // because bodies are the noisiest field and carry PII even after redaction.
+  LOG_LEVEL: Joi.string().valid('fatal', 'error', 'warn', 'log', 'debug', 'verbose').optional(),
+  LOG_FORMAT: Joi.string().valid('json', 'pretty').optional(),
+  LOG_HTTP_BODY: Joi.boolean().default(false),
 }).unknown(true);
 
 export interface AppEnv {
@@ -51,6 +60,9 @@ export interface AppEnv {
   FCM_SERVER_KEY?: string;
   OPENWEATHER_API_KEY?: string;
   MEDIA_SERVER_BASE_URL?: string;
+  LOG_LEVEL?: 'fatal' | 'error' | 'warn' | 'log' | 'debug' | 'verbose';
+  LOG_FORMAT?: 'json' | 'pretty';
+  LOG_HTTP_BODY: boolean;
 }
 
 /**

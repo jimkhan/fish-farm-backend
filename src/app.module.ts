@@ -8,6 +8,7 @@ import { PersistenceModule } from './platform/persistence/persistence.module';
 import { TransactionModule } from './platform/persistence/transaction.module';
 import { AuditModule } from './shared-kernel/audit/audit.module';
 import { ErrorsModule } from './shared-kernel/errors/errors.module';
+import { LoggingModule } from './shared-kernel/logging/logging.module';
 import { TenantModule } from './shared-kernel/tenant/tenant.module';
 import { FeedModule } from './modules/feed/feed.module';
 import { FinanceModule } from './modules/finance/finance.module';
@@ -51,6 +52,10 @@ import { WaterModule } from './modules/water/water.module';
     HealthModule,
     EventsModule,
     ErrorsModule,
+    // Directly after ErrorsModule: middleware runs in module order, so the correlation id exists
+    // before the request-logging middleware starts, yet logging still wraps the auth middleware
+    // (IdentityModule, below) and every guard — rejected requests get a log line too.
+    LoggingModule,
     TenantModule,
     AuditModule,
     CalendarModule,

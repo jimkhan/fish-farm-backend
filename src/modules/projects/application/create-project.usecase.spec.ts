@@ -9,6 +9,7 @@ function setup(overrides: { provisionFirstPond?: ProvisionFirstPondPort | null }
   const projects: jest.Mocked<ProjectRepositoryPort> = {
     findAllActive: jest.fn(),
     findById: jest.fn(),
+    findByIds: jest.fn().mockResolvedValue([]),
     findPage: jest.fn(),
     save: jest.fn().mockImplementation(async (p: Project) => p),
   };

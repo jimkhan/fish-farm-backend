@@ -58,14 +58,14 @@ export class FeedingReminderScheduler {
   }
 
   async remind(): Promise<void> {
-    const [activeBatches, allSpecies] = await Promise.all([
-      this.batches.findAllActive(),
+    const [stockedBatches, allSpecies] = await Promise.all([
+      this.batches.findWithStockInPond(),
       this.species.findAll(),
     ]);
     const speciesById = new Map(allSpecies.map((s) => [s.id, s]));
 
     const due = new Map<string, { projectId: string; feedType: FeedType }>();
-    for (const batch of activeBatches) {
+    for (const batch of stockedBatches) {
       const speciesEntity = speciesById.get(batch.speciesId);
       if (!speciesEntity) {
         continue;

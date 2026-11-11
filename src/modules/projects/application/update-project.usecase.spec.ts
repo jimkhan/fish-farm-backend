@@ -27,6 +27,7 @@ function setup(overrides: { project?: Project | null } = {}) {
     findById: jest
       .fn()
       .mockResolvedValue(overrides.project === undefined ? projectFixture() : overrides.project),
+    findByIds: jest.fn().mockResolvedValue([]),
     findPage: jest.fn(),
     save: jest.fn().mockImplementation(async (p: Project) => p),
   };

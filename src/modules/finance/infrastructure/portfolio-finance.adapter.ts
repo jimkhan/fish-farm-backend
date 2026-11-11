@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { PortfolioFinancePort } from '../../projects/domain/portfolio-finance.port';
 import { FinancialTxnPersistenceModel } from './persistence/financial-txn.persistence-model';
 
@@ -19,11 +19,23 @@ export class PortfolioFinanceAdapter implements PortfolioFinancePort {
     private readonly repository: Repository<FinancialTxnPersistenceModel>,
   ) {}
 
-  async getNetProfitMinor(projectId: string): Promise<number> {
-    const models = await this.repository.find({ where: { projectId } });
-    return models.reduce(
-      (sum, model) => sum + (model.kind === 'REVENUE' ? model.amountMinor : -model.amountMinor),
-      0,
-    );
+  async getNetProfitMinorFor(projectIds: readonly string[]): Promise<Map<string, number>> {
+    if (projectIds.length === 0) {
+      return new Map();
+    }
+    // Net profit summed in SQL, grouped by project — one query for the whole portfolio, and no
+    // longer loads every transaction row of every project into memory just to fold them.
+    const rows = await this.repository
+      .createQueryBuilder('txn')
+      .select('txn.project_id', 'projectId')
+      .addSelect(
+        `COALESCE(SUM(CASE WHEN txn.kind = 'REVENUE' THEN txn.amount_minor ELSE -txn.amount_minor END), 0)`,
+        'netMinor',
+      )
+      .where({ projectId: In([...projectIds]) })
+      .groupBy('txn.project_id')
+      .getRawMany<{ projectId: string; netMinor: string }>();
+
+    return new Map(rows.map((row) => [row.projectId, Number(row.netMinor)]));
   }
 }

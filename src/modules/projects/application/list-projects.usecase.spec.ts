@@ -23,6 +23,7 @@ function setup(overrides: { memberships?: ProjectMembership[]; page?: ProjectLis
   const projects: jest.Mocked<ProjectRepositoryPort> = {
     findAllActive: jest.fn(),
     findById: jest.fn(),
+    findByIds: jest.fn().mockResolvedValue([]),
     findPage: jest.fn().mockResolvedValue(overrides.page ?? { data: [], nextCursor: null }),
     save: jest.fn(),
   };

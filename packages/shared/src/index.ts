@@ -12,3 +12,4 @@ export * from './feed-events';
 export * from './harvest-events';
 export * from './finance-events';
 export * from './money';
+export * from './density';

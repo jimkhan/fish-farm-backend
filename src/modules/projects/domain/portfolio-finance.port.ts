@@ -4,7 +4,10 @@
  * `PortfolioAlertsPort` (TASK-012).
  */
 export interface PortfolioFinancePort {
-  getNetProfitMinor(projectId: string): Promise<number>;
+  /** Net profit (BDT minor units) per project, keyed by project id. A project with no
+   * transactions may be absent from the map; the caller treats a miss as zero. Batched — see
+   * `PortfolioBiomassPort`. */
+  getNetProfitMinorFor(projectIds: readonly string[]): Promise<Map<string, number>>;
 }
 
 export const PORTFOLIO_FINANCE = 'PortfolioFinancePort';

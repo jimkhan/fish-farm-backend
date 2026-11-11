@@ -11,6 +11,9 @@ export interface ProjectListPage {
  */
 export interface ProjectRepositoryPort {
   findById(id: string): Promise<Project | null>;
+  /** Bulk lookup — the portfolio roll-up needs every owned project's name in one query rather
+   * than one `findById` per project. Order is unspecified; callers key by id. */
+  findByIds(ids: readonly string[]): Promise<Project[]>;
   /** `projectIds` among the caller's memberships (CON-006), keyset-paginated by `createdAt, id`. */
   findPage(projectIds: string[], cursor: string | null, limit: number): Promise<ProjectListPage>;
   /** TASK-036: every ACTIVE project across every owner — `RefreshWeatherScheduler` polls

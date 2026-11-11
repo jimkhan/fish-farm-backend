@@ -77,9 +77,26 @@ export class Batch {
     return this.props.createdAt;
   }
 
-  /** R4: never negative — mortality/harvest exceeding initial clamps at 0 (a flagged data anomaly). */
+  /**
+   * Fish still in the pond (MOD-04 R4): initial minus deaths minus fish taken out by harvest.
+   * Never negative — mortality/harvest exceeding initial clamps at 0 (a flagged data anomaly).
+   *
+   * This is the *stock* figure, and the right basis for biomass and feed. It is deliberately NOT
+   * the basis for survival rate — see {@link survivorsExcludingHarvest}.
+   */
   get survivalEstimate(): number {
     return Math.max(0, this.props.initialCount - this.props.cumulativeMortality - this.props.harvestedCount);
+  }
+
+  /**
+   * Fish that did not die (MOD-04 R4a): initial minus mortality only. A harvested fish survived —
+   * it was sold, not lost — so counting it against survival misreports husbandry as loss.
+   *
+   * Using `survivalEstimate` here made a farmer who harvested 60% of a perfectly healthy batch
+   * read "survival rate 40%", indistinguishable from a mass die-off.
+   */
+  get survivorsExcludingHarvest(): number {
+    return Math.max(0, this.props.initialCount - this.props.cumulativeMortality);
   }
 
   /** R6: no weight-derived biomass before the first sampling. */
@@ -89,9 +106,20 @@ export class Batch {
       : this.survivalEstimate * this.props.latestAvgWeightG;
   }
 
+  /** True once nothing remains in the pond — every fish is dead or harvested. */
+  private get isDepleted(): boolean {
+    return this.survivalEstimate === 0;
+  }
+
   /** AC-063: applies a mortality count (already de-duplicated by the idempotent event consumer). */
   applyMortality(count: number): Batch {
-    return new Batch({ ...this.props, cumulativeMortality: this.props.cumulativeMortality + count });
+    const next = new Batch({
+      ...this.props,
+      cumulativeMortality: this.props.cumulativeMortality + count,
+    });
+    // A batch wiped out entirely is over; nothing is left to feed, sample or harvest. It skips
+    // HARVESTING because that stage describes a batch being *taken out*, and this one never was.
+    return next.isDepleted ? next.withStatus('CLOSED') : next;
   }
 
   /** AC-066: replaces the latest sampling weight. */
@@ -99,8 +127,24 @@ export class Batch {
     return new Batch({ ...this.props, latestAvgWeightG: avgWeightG });
   }
 
-  /** AC-067: applies a harvested count. */
+  /**
+   * AC-067: applies a harvested count, advancing the batch along `ACTIVE→HARVESTING→CLOSED`
+   * (MOD-04 §2.5 edge case 7).
+   *
+   * The status used to stay `ACTIVE` forever, which is not cosmetic: `findWithStockInPond()` (the
+   * feeding-reminder scan) selects on it, so a pond harvested and emptied in March still produced
+   * twice-daily feed reminders for the worker months later.
+   */
   applyHarvest(count: number): Batch {
-    return new Batch({ ...this.props, harvestedCount: this.props.harvestedCount + count });
+    const next = new Batch({ ...this.props, harvestedCount: this.props.harvestedCount + count });
+    return next.withStatus(next.isDepleted ? 'CLOSED' : 'HARVESTING');
+  }
+
+  /** Terminal states never regress — a later event on a CLOSED batch leaves it CLOSED. */
+  private withStatus(status: BatchStatus): Batch {
+    if (this.props.status === 'CLOSED') {
+      return this;
+    }
+    return new Batch({ ...this.props, status });
   }
 }

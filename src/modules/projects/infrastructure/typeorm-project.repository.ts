@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { TransactionContext } from '../../../platform/persistence/transaction-context';
 import { Project } from '../domain/project.entity';
 import {
@@ -28,6 +28,14 @@ export class TypeOrmProjectRepository implements ProjectRepositoryPort {
   async findById(id: string): Promise<Project | null> {
     const model = await this.repo.findOne({ where: { id } });
     return model ? toDomain(model) : null;
+  }
+
+  async findByIds(ids: readonly string[]): Promise<Project[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+    const models = await this.repo.find({ where: { id: In([...ids]) } });
+    return models.map(toDomain);
   }
 
   async findAllActive(): Promise<Project[]> {

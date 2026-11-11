@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Batch } from '../domain/batch.entity';
 import { BatchEventRepositoryPort } from '../application/ports/batch-event-repository.port';
 import { toDomain, toPersistence } from './persistence/batch.mapper';
@@ -19,8 +19,8 @@ export class TypeOrmBatchEventRepository implements BatchEventRepositoryPort {
     return model ? toDomain(model) : null;
   }
 
-  async findAllActive(): Promise<Batch[]> {
-    const models = await this.repository.find({ where: { status: 'ACTIVE' } });
+  async findWithStockInPond(): Promise<Batch[]> {
+    const models = await this.repository.find({ where: { status: In(['ACTIVE', 'HARVESTING']) } });
     return models.map(toDomain);
   }
 

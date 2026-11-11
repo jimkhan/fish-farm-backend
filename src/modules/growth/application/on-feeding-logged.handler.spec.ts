@@ -23,7 +23,7 @@ const batch = Batch.reconstitute({
 function setup(overrides: { batch?: Batch | null } = {}) {
   const batches: jest.Mocked<BatchEventRepositoryPort> = {
     findById: jest.fn().mockResolvedValue(overrides.batch === undefined ? batch : overrides.batch),
-    findAllActive: jest.fn(),
+    findWithStockInPond: jest.fn(),
     save: jest.fn(),
   };
   const accumulator: jest.Mocked<PondFeedAccumulatorEventRepositoryPort> = {

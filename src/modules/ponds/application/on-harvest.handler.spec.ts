@@ -30,7 +30,7 @@ const event: HarvestRecorded = {
 function setup(overrides: { batch?: Batch | null } = {}) {
   const batches: jest.Mocked<BatchEventRepositoryPort> = {
     findById: jest.fn().mockResolvedValue(overrides.batch === undefined ? batch : overrides.batch),
-    findAllActive: jest.fn(),
+    findWithStockInPond: jest.fn(),
     save: jest.fn().mockImplementation(async (b: Batch) => b),
   };
   return { handler: new OnHarvestHandler(batches), batches };

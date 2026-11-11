@@ -427,7 +427,54 @@ describe('Sampling/Growth e2e (TASK-029, CON-020/052, AC-096/097)', () => {
       expect(res.body.totalFeedKg).toBe(50);
       expect(res.body.biomassGainKg).toBeCloseTo(105);
       expect(res.body.fcr).toBeCloseTo(50 / 105);
-      expect(res.body.batches).toEqual([{ batchId, speciesId: goldaSpeciesId, survivalRate: 0.9 }]);
+      // AC-099 (amended): 100 of 1000 were HARVESTED and none died, so survival is 100%. Biomass
+      // still nets the harvest off (900 fish above), but a sold fish is not a lost fish — this
+      // used to report 0.9, indistinguishable from a 10% die-off.
+      expect(res.body.batches).toEqual([{ batchId, speciesId: goldaSpeciesId, survivalRate: 1 }]);
+    });
+
+    it('AC-099: mortality — and only mortality — reduces the survival rate', async () => {
+      const fcrPondId = await newFcrPond();
+
+      const stocking = await request(app.getHttpServer())
+        .post(`/projects/${projectId}/ponds/${fcrPondId}/stockings`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ speciesId: goldaSpeciesId, count: 1000, stockedOn: '2026-01-01' })
+        .expect(201);
+      const batchId = stocking.body.id;
+
+      await request(app.getHttpServer())
+        .post(`/projects/${projectId}/batches/${batchId}/mortalities`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({
+          count: 200,
+          causeCategory: 'DISEASE',
+          occurredAt: '2026-02-10T00:00:00.000Z',
+          clientMutationId: 'fcr-mortality-1',
+        })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .post(`/projects/${projectId}/batches/${batchId}/harvests`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({
+          quantity: 100,
+          totalWeightKg: 15,
+          grade: 'LOCAL',
+          harvestedOn: '2026-03-15',
+          clientMutationId: 'fcr-mortality-harvest-1',
+        })
+        .expect(201);
+
+      const res = await request(app.getHttpServer())
+        .get(`/projects/${projectId}/ponds/${fcrPondId}/fcr`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(200);
+
+      // 200 died of 1000 → 80%. The additional 100 harvested must NOT drag it to 70%.
+      expect(res.body.batches).toEqual([
+        { batchId, speciesId: goldaSpeciesId, survivalRate: 0.8 },
+      ]);
     });
 
     it('edge case 2: fewer than 2 samplings → fcr/biomassGainKg are null, never fabricated', async () => {

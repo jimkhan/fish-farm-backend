@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
+import { RequestWithLogState, stampRequestLog } from '../logging/request-log-state';
 import { CORRELATION_HEADER, RequestWithCorrelationId } from './correlation.middleware';
 import { DomainError } from './domain-error';
 
@@ -17,6 +18,9 @@ export interface ErrorResponseBody {
   details?: Record<string, unknown>;
   correlationId: string;
 }
+
+/** Request slice the filter reads/writes: the correlation id plus the request-log slot. */
+type ErrorRequest = RequestWithCorrelationId & RequestWithLogState;
 
 /** Response slice the filter needs — structural, so no `@types/express` dependency. */
 interface ErrorResponse {
@@ -40,6 +44,10 @@ const CODE_BY_STATUS: Record<number, string> = {
  * `DomainError`, framework `HttpException`, or unknown — is shaped as the shared `Error`
  * schema with a correlation id. Unknown errors become `INTERNAL`/500 with the real cause
  * logged server-side and never leaked to the client (NFR-005).
+ *
+ * Every error is also stamped onto the request's log slot (`req.log.error`) so the single
+ * `http.request` line `RequestLoggingMiddleware` emits explains *why* a 4xx/5xx happened —
+ * code, message and (for validation) the offending fields — without a second log line.
  */
 @Catch()
 export class DomainExceptionFilter implements ExceptionFilter {
@@ -48,13 +56,20 @@ export class DomainExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const res = ctx.getResponse<ErrorResponse>();
-    const req = ctx.getRequest<RequestWithCorrelationId>();
+    const req = ctx.getRequest<ErrorRequest>();
 
     // Middleware normally sets this; fall back so an error response always carries a ref.
     const correlationId = req.correlationId ?? randomUUID();
     res.setHeader(CORRELATION_HEADER, correlationId);
 
     if (exception instanceof DomainError) {
+      stampRequestLog(req, {
+        error: {
+          code: exception.code,
+          message: exception.message,
+          ...(exception.details !== undefined && { details: exception.details }),
+        },
+      });
       res.status(exception.httpStatus).json({
         code: exception.code,
         message: exception.message,
@@ -79,10 +94,18 @@ export class DomainExceptionFilter implements ExceptionFilter {
           ? { errors: (payload as { message: unknown[] }).message }
           : undefined;
 
+      const code =
+        CODE_BY_STATUS[status] ??
+        (status >= HttpStatus.INTERNAL_SERVER_ERROR ? 'INTERNAL' : `HTTP_${status}`);
+      stampRequestLog(req, {
+        error: { code, message, ...(details !== undefined && { details }) },
+      });
+      if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+        this.logger.error({ msg: exception.message, correlationId, code, status }, exception.stack);
+      }
+
       res.status(status).json({
-        code:
-          CODE_BY_STATUS[status] ??
-          (status >= HttpStatus.INTERNAL_SERVER_ERROR ? 'INTERNAL' : `HTTP_${status}`),
+        code,
         message,
         ...(details !== undefined && { details }),
         correlationId,
@@ -92,7 +115,11 @@ export class DomainExceptionFilter implements ExceptionFilter {
 
     // Unknown error: log the truth server-side, return an opaque reference to the client.
     const cause = exception instanceof Error ? exception : new Error(String(exception));
-    this.logger.error(`[${correlationId}] ${cause.message}`, cause.stack);
+    this.logger.error(
+      { msg: cause.message, correlationId, code: 'INTERNAL', status: 500, errorName: cause.name },
+      cause.stack,
+    );
+    stampRequestLog(req, { error: { code: 'INTERNAL', message: cause.message } });
     res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       code: 'INTERNAL',
       message: `Something went wrong (ref: ${correlationId}).`,

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Not, Repository } from 'typeorm';
+import { In, Not, Repository } from 'typeorm';
 import { PortfolioAlertsPort } from '../../projects/domain/portfolio-alerts.port';
 import { AlertPersistenceModel } from './persistence/alert.persistence-model';
 
@@ -18,9 +18,19 @@ export class PortfolioAlertsAdapter implements PortfolioAlertsPort {
     private readonly repository: Repository<AlertPersistenceModel>,
   ) {}
 
-  async countOpenCritical(projectId: string): Promise<number> {
-    return this.repository.count({
-      where: { projectId, severity: 'CRITICAL', state: Not('RESOLVED') },
-    });
+  async countOpenCriticalFor(projectIds: readonly string[]): Promise<Map<string, number>> {
+    if (projectIds.length === 0) {
+      return new Map();
+    }
+    // One grouped COUNT for the whole portfolio instead of one per project.
+    const rows = await this.repository
+      .createQueryBuilder('alert')
+      .select('alert.project_id', 'projectId')
+      .addSelect('COUNT(*)', 'count')
+      .where({ projectId: In([...projectIds]), severity: 'CRITICAL', state: Not('RESOLVED') })
+      .groupBy('alert.project_id')
+      .getRawMany<{ projectId: string; count: string }>();
+
+    return new Map(rows.map((row) => [row.projectId, Number(row.count)]));
   }
 }

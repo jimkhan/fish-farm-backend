@@ -105,7 +105,12 @@ describe('DomainExceptionFilter (TASK-003, AC-008)', () => {
     const { host } = mockHost('req-12345678');
     filter.catch(new Error('secret db string'), host);
     expect(Logger.prototype.error).toHaveBeenCalledWith(
-      expect.stringContaining('secret db string'),
+      expect.objectContaining({
+        msg: 'secret db string',
+        correlationId: 'req-12345678',
+        code: 'INTERNAL',
+        status: 500,
+      }),
       expect.any(String),
     );
   });
